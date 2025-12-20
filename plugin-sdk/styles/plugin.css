@@ -2,7 +2,7 @@
  * Treeline Plugin Styles
  *
  * Shared CSS classes for community plugins to match the app's look and feel.
- * Import this in your plugin: import '@treeline/sdk/styles.css'
+ * Import this in your plugin: import '@treeline-money/plugin-sdk/styles'
  *
  * All classes are prefixed with `tl-` to avoid conflicts.
  */
