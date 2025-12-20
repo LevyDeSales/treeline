@@ -1,5 +1,5 @@
 [project]
-name = "treeline"
+name = "treeline-money"
 version = "0.1.49"
 description = "Personal finance in your terminal"
 readme = "README.md"

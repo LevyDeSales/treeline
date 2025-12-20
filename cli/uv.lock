@@ -572,7 +572,7 @@ wheels = [
 ]
 
 [[package]]
-name = "treeline"
+name = "treeline-money"
 version = "0.1.49"
 source = { editable = "." }
 dependencies = [
