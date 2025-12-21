@@ -57,6 +57,12 @@ export interface PluginPermissions {
 // ============================================================================
 
 /**
+ * Query parameter type - supports primitives and arrays.
+ * Use with parameterized queries to prevent SQL injection.
+ */
+export type QueryParam = string | number | boolean | null | string[] | number[];
+
+/**
  * The SDK object passed to plugin views via props.
  *
  * @example
@@ -69,8 +75,11 @@ export interface PluginPermissions {
  *   }
  *   const { sdk }: Props = $props();
  *
- *   // Query transactions
- *   const transactions = await sdk.query('SELECT * FROM transactions LIMIT 10');
+ *   // Query with parameterized values (SAFE - recommended)
+ *   const transactions = await sdk.query(
+ *     'SELECT * FROM transactions WHERE amount > ? AND description LIKE ?',
+ *     [100, '%coffee%']
+ *   );
  *
  *   // Show a toast
  *   sdk.toast.success('Data loaded!');
@@ -80,18 +89,38 @@ export interface PluginPermissions {
 export interface PluginSDK {
   /**
    * Execute a read-only SQL query against the database.
-   * @param sql - SQL SELECT query
+   * Use parameterized queries (?) for user-provided values to prevent SQL injection.
+   *
+   * @param sql - SQL SELECT query with ? placeholders
+   * @param params - Optional array of values to bind to ? placeholders
    * @returns Array of row objects
+   *
+   * @example
+   * // Parameterized query (SAFE)
+   * const results = await sdk.query(
+   *   'SELECT * FROM transactions WHERE amount > ?',
+   *   [100]
+   * );
    */
-  query: <T = Record<string, unknown>>(sql: string) => Promise<T[]>;
+  query: <T = Record<string, unknown>>(sql: string, params?: QueryParam[]) => Promise<T[]>;
 
   /**
    * Execute a write SQL query (INSERT/UPDATE/DELETE).
    * Restricted to tables allowed in plugin permissions.
-   * @param sql - SQL write query
+   * Use parameterized queries (?) for user-provided values to prevent SQL injection.
+   *
+   * @param sql - SQL write query with ? placeholders
+   * @param params - Optional array of values to bind to ? placeholders
    * @returns Object with rowsAffected count
+   *
+   * @example
+   * // Parameterized insert (SAFE)
+   * await sdk.execute(
+   *   'INSERT INTO sys_plugin_mydata (name, value) VALUES (?, ?)',
+   *   ['key', 123]
+   * );
    */
-  execute: (sql: string) => Promise<{ rowsAffected: number }>;
+  execute: (sql: string, params?: QueryParam[]) => Promise<{ rowsAffected: number }>;
 
   /**
    * Toast notification methods.
