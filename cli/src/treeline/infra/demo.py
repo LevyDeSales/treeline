@@ -751,8 +751,8 @@ class DemoDataProvider(DataAggregationProvider, IntegrationProvider):
         sql_statements = []
 
         # Clear existing demo budget data
-        sql_statements.append("DELETE FROM sys_plugin_budget_categories;")
-        sql_statements.append("DELETE FROM sys_plugin_budget_rollovers;")
+        sql_statements.append("DELETE FROM plugin_budget.categories;")
+        sql_statements.append("DELETE FROM plugin_budget.rollovers;")
 
         # Budget categories - designed to create visually appealing results
         # Income categories (match payroll transactions: $4250 x 2 = $8500/month)
@@ -855,7 +855,7 @@ class DemoDataProvider(DataAggregationProvider, IntegrationProvider):
                 amount_sign_sql = f"'{amount_sign}'" if amount_sign else "NULL"
 
                 sql_statements.append(f"""
-                    INSERT INTO sys_plugin_budget_categories
+                    INSERT INTO plugin_budget.categories
                         (category_id, month, type, name, expected, tags, require_all, amount_sign, sort_order)
                     VALUES
                         ('{cat_id}', '{month}', '{cat_type}', '{name}', {expected}, {tags_sql}, {require_all}, {amount_sign_sql}, {i});
@@ -882,7 +882,7 @@ class DemoDataProvider(DataAggregationProvider, IntegrationProvider):
         for source_month, from_cat, to_cat, to_month, amount in rollovers:
             rollover_id = str(uuid4())
             sql_statements.append(f"""
-                INSERT INTO sys_plugin_budget_rollovers
+                INSERT INTO plugin_budget.rollovers
                     (rollover_id, source_month, from_category, to_category, to_month, amount)
                 VALUES
                     ('{rollover_id}', '{source_month}', '{from_cat}', '{to_cat}', '{to_month}', {amount});

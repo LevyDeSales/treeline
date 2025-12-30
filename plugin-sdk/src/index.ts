@@ -39,15 +39,39 @@ export interface PluginManifest {
 
 /**
  * Permissions a plugin can request.
+ *
+ * Plugins automatically have full read/write access to their own schema (plugin_<id>).
+ * These permissions are for accessing tables OUTSIDE the plugin's own schema.
  */
 export interface PluginPermissions {
-  /** Table permissions for this plugin */
+  /**
+   * Tables this plugin can SELECT from (outside its own schema).
+   * Use "*" for unrestricted read access (e.g., query plugin).
+   *
+   * @example ["transactions", "accounts", "sys_balance_snapshots"]
+   */
+  read?: string[];
+
+  /**
+   * Tables this plugin can explicitly write to (outside its own schema).
+   * Most plugins don't need this - they only write to their own schema.
+   *
+   * @example ["sys_transactions"] // tagging plugin modifies transaction tags
+   */
+  write?: string[];
+
+  /**
+   * Optional schema name override.
+   * Default: plugin_<id with hyphens replaced by underscores>
+   *
+   * @example "plugin_cashflow" for plugin ID "treeline-cashflow"
+   */
+  schemaName?: string;
+
+  // DEPRECATED: Old format - will be removed in future version
   tables?: {
-    /** Tables this plugin can SELECT from */
     read?: string[];
-    /** Tables this plugin can INSERT/UPDATE/DELETE */
     write?: string[];
-    /** Tables this plugin can CREATE/DROP (must match sys_plugin_{id}_* pattern) */
     create?: string[];
   };
 }
@@ -105,8 +129,8 @@ export interface PluginSDK {
   query: <T = Record<string, unknown>>(sql: string, params?: QueryParam[]) => Promise<T[]>;
 
   /**
-   * Execute a write SQL query (INSERT/UPDATE/DELETE).
-   * Restricted to tables allowed in plugin permissions.
+   * Execute a write SQL query (INSERT/UPDATE/DELETE/CREATE/DROP).
+   * Plugins have full write access to their own schema (plugin_<id>).
    * Use parameterized queries (?) for user-provided values to prevent SQL injection.
    *
    * @param sql - SQL write query with ? placeholders
@@ -114,13 +138,26 @@ export interface PluginSDK {
    * @returns Object with rowsAffected count
    *
    * @example
-   * // Parameterized insert (SAFE)
+   * // Parameterized insert to own schema (SAFE)
+   * const schema = sdk.getSchemaName();
    * await sdk.execute(
-   *   'INSERT INTO sys_plugin_mydata (name, value) VALUES (?, ?)',
-   *   ['key', 123]
+   *   `INSERT INTO ${schema}.goals (id, name) VALUES (?, ?)`,
+   *   [crypto.randomUUID(), 'Emergency Fund']
    * );
    */
   execute: (sql: string, params?: QueryParam[]) => Promise<{ rowsAffected: number }>;
+
+  /**
+   * Get the schema name for this plugin.
+   * Tables should be created in this schema: `${sdk.getSchemaName()}.table_name`
+   *
+   * @returns The plugin's schema name (e.g., "plugin_goals", "plugin_budget")
+   *
+   * @example
+   * const schema = sdk.getSchemaName(); // "plugin_goals"
+   * await sdk.execute(`CREATE TABLE IF NOT EXISTS ${schema}.goals (...)`);
+   */
+  getSchemaName: () => string;
 
   /**
    * Toast notification methods.

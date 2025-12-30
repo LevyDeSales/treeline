@@ -357,7 +357,7 @@ class DoctorService:
         # Check if budget table exists
         table_check = await self.repository.execute_query("""
             SELECT table_name FROM information_schema.tables
-            WHERE table_name = 'sys_plugin_budget_categories'
+            WHERE table_name = 'plugin_budget.categories'
         """)
 
         if not table_check.success or not table_check.data.get("rows"):
@@ -373,7 +373,7 @@ class DoctorService:
         # Load categories for the current month
         categories_result = await self.repository.execute_query(f"""
             SELECT category_id, name, tags, require_all
-            FROM sys_plugin_budget_categories
+            FROM plugin_budget.categories
             WHERE month = '{current_month}' AND type = 'expense'
         """)
 
@@ -504,7 +504,7 @@ class DoctorService:
         # Check if budget table exists
         table_check = await self.repository.execute_query("""
             SELECT table_name FROM information_schema.tables
-            WHERE table_name = 'sys_plugin_budget_categories'
+            WHERE table_name = 'plugin_budget.categories'
         """)
 
         if not table_check.success or not table_check.data.get("rows"):
@@ -520,7 +520,7 @@ class DoctorService:
         # Load expense categories for the current month
         categories_result = await self.repository.execute_query(f"""
             SELECT category_id, name, tags, require_all
-            FROM sys_plugin_budget_categories
+            FROM plugin_budget.categories
             WHERE month = '{current_month}' AND type = 'expense'
         """)
 
