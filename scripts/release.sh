@@ -219,21 +219,6 @@ Skip version bump commits. If there are no user-facing changes, just write 'Mino
     echo "----------------------------------------"
     cat "$NOTES_FILE"
     echo "----------------------------------------"
-    echo ""
-
-    # Ask user to confirm or edit
-    read -p "Proceed with these release notes? (y/n/e to edit): " CONFIRM
-    case $CONFIRM in
-        [eE])
-            ${EDITOR:-nano} "$NOTES_FILE"
-            ;;
-        [yY])
-            ;;
-        *)
-            echo -e "${RED}Release cancelled${NC}"
-            exit 1
-            ;;
-    esac
 
     NOTES=$(cat "$NOTES_FILE")
 fi
