@@ -367,8 +367,13 @@ class PluginService:
             install_dir = self.plugins_dir / plugin_id
             install_dir.mkdir(parents=True, exist_ok=True)
 
+            # Add source to manifest so we know where to fetch updates
+            manifest["source"] = f"https://github.com/{owner}/{repo}"
+
             try:
-                shutil.copy2(manifest_path, install_dir / "manifest.json")
+                # Write manifest with source field
+                with open(install_dir / "manifest.json", "w") as f:
+                    json.dump(manifest, f, indent=2)
                 shutil.copy2(index_path, install_dir / "index.js")
             except Exception as e:
                 return Result(success=False, error=f"Failed to copy plugin files: {e}")
@@ -382,7 +387,7 @@ class PluginService:
                         "tag_name", manifest.get("version", "unknown")
                     ),
                     "install_dir": str(install_dir),
-                    "source": f"github:{owner}/{repo}",
+                    "source": f"https://github.com/{owner}/{repo}",
                 },
             )
 
@@ -595,6 +600,7 @@ class PluginService:
                         "version": manifest.get("version", "unknown"),
                         "description": manifest.get("description", ""),
                         "author": manifest.get("author", ""),
+                        "source": manifest.get("source", ""),
                     }
                 )
             except Exception:
@@ -602,3 +608,153 @@ class PluginService:
                 continue
 
         return Result(success=True, data=plugins)
+
+    def check_update(self, plugin_id: str) -> Result[Dict[str, Any]]:
+        """Check if an update is available for a plugin.
+
+        Args:
+            plugin_id: ID of plugin to check
+
+        Returns:
+            Result with update info (has_update, installed_version, latest_version)
+        """
+        plugin_dir = self.plugins_dir / plugin_id
+        manifest_path = plugin_dir / "manifest.json"
+
+        if not manifest_path.exists():
+            return Result(success=False, error=f"Plugin not found: {plugin_id}")
+
+        try:
+            with open(manifest_path, "r") as f:
+                manifest = json.load(f)
+        except Exception as e:
+            return Result(success=False, error=f"Failed to read manifest: {e}")
+
+        source = manifest.get("source")
+        if not source:
+            return Result(
+                success=True,
+                data={
+                    "plugin_id": plugin_id,
+                    "has_update": False,
+                    "installed_version": manifest.get("version", "unknown"),
+                    "latest_version": None,
+                    "reason": "no_source",
+                },
+            )
+
+        # Fetch latest release info
+        latest_result = self.fetch_manifest(source)
+        if not latest_result.success:
+            return Result(
+                success=True,
+                data={
+                    "plugin_id": plugin_id,
+                    "has_update": False,
+                    "installed_version": manifest.get("version", "unknown"),
+                    "latest_version": None,
+                    "reason": "fetch_failed",
+                    "error": latest_result.error,
+                },
+            )
+
+        installed_version = manifest.get("version", "0.0.0")
+        latest_version = latest_result.data.get("version", "0.0.0")
+
+        # Strip 'v' prefix for comparison
+        installed_clean = installed_version.lstrip("v")
+        latest_clean = latest_version.lstrip("v")
+
+        has_update = self._version_compare(latest_clean, installed_clean) > 0
+
+        return Result(
+            success=True,
+            data={
+                "plugin_id": plugin_id,
+                "has_update": has_update,
+                "installed_version": installed_version,
+                "latest_version": latest_version,
+                "source": source,
+            },
+        )
+
+    def _version_compare(self, v1: str, v2: str) -> int:
+        """Compare two semver version strings.
+
+        Args:
+            v1: First version
+            v2: Second version
+
+        Returns:
+            -1 if v1 < v2, 0 if equal, 1 if v1 > v2
+        """
+        def parse_version(v: str) -> tuple[int, ...]:
+            # Handle versions like "0.1.7" or "0.1.7-beta"
+            parts = v.split("-")[0].split(".")
+            return tuple(int(p) for p in parts if p.isdigit())
+
+        try:
+            p1 = parse_version(v1)
+            p2 = parse_version(v2)
+
+            # Pad shorter version with zeros
+            max_len = max(len(p1), len(p2))
+            p1 = p1 + (0,) * (max_len - len(p1))
+            p2 = p2 + (0,) * (max_len - len(p2))
+
+            if p1 > p2:
+                return 1
+            elif p1 < p2:
+                return -1
+            return 0
+        except (ValueError, AttributeError):
+            # Fall back to string comparison
+            if v1 > v2:
+                return 1
+            elif v1 < v2:
+                return -1
+            return 0
+
+    def upgrade_plugin(self, plugin_id: str) -> Result[Dict[str, Any]]:
+        """Upgrade a plugin to the latest version.
+
+        Args:
+            plugin_id: ID of plugin to upgrade
+
+        Returns:
+            Result with upgrade details
+        """
+        plugin_dir = self.plugins_dir / plugin_id
+        manifest_path = plugin_dir / "manifest.json"
+
+        if not manifest_path.exists():
+            return Result(success=False, error=f"Plugin not found: {plugin_id}")
+
+        try:
+            with open(manifest_path, "r") as f:
+                manifest = json.load(f)
+        except Exception as e:
+            return Result(success=False, error=f"Failed to read manifest: {e}")
+
+        source = manifest.get("source")
+        if not source:
+            return Result(
+                success=False,
+                error=f"Plugin '{plugin_id}' has no source URL. Cannot upgrade plugins installed from local directories.",
+            )
+
+        old_version = manifest.get("version", "unknown")
+
+        # Reinstall from source (latest version)
+        result = self.install_plugin(source)
+        if not result.success:
+            return result
+
+        return Result(
+            success=True,
+            data={
+                **result.data,
+                "old_version": old_version,
+                "upgraded": True,
+            },
+        )

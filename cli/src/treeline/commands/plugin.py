@@ -255,3 +255,70 @@ def register(app: typer.Typer, get_container: callable) -> None:
             raise typer.Exit(1)
 
         output_json({"success": True, **result.data})
+
+    @plugin_app.command(name="upgrade")
+    def plugin_upgrade_command(
+        plugin_id: str = typer.Argument(..., help="Plugin ID to upgrade"),
+        json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+    ) -> None:
+        """Upgrade a plugin to the latest version.
+
+        Downloads the latest release from the plugin's source repository.
+
+        Examples:
+          tl plugin upgrade goals
+          tl plugin upgrade budget --json
+        """
+        container = get_container()
+        plugin_service = container.plugin_service()
+
+        if not json_output:
+            with console.status(
+                f"[{theme.status_loading}]Upgrading plugin {plugin_id}..."
+            ):
+                result = plugin_service.upgrade_plugin(plugin_id)
+        else:
+            result = plugin_service.upgrade_plugin(plugin_id)
+
+        if not result.success:
+            if json_output:
+                output_json({"success": False, "error": result.error})
+            else:
+                display_error(result.error)
+            raise typer.Exit(1)
+
+        if json_output:
+            output_json({"success": True, **result.data})
+        else:
+            old_ver = result.data.get("old_version", "unknown")
+            new_ver = result.data.get("version", "unknown")
+            console.print(
+                f"\n[{theme.success}]✓ Upgraded plugin: {result.data['plugin_name']}[/{theme.success}]"
+            )
+            console.print(f"  Version: {old_ver} → {new_ver}")
+            console.print(
+                f"\n[{theme.info}]Restart the Treeline UI to load the updated plugin[/{theme.info}]\n"
+            )
+
+    @plugin_app.command(name="check-update")
+    def plugin_check_update_command(
+        plugin_id: str = typer.Argument(..., help="Plugin ID to check"),
+    ) -> None:
+        """Check if an update is available for a plugin.
+
+        Compares installed version with latest GitHub release.
+        Always outputs JSON for use by the UI.
+
+        Examples:
+          tl plugin check-update goals
+        """
+        container = get_container()
+        plugin_service = container.plugin_service()
+
+        result = plugin_service.check_update(plugin_id)
+
+        if not result.success:
+            output_json({"success": False, "error": result.error})
+            raise typer.Exit(1)
+
+        output_json({"success": True, **result.data})
