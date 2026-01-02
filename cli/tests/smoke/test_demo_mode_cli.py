@@ -12,6 +12,15 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import pytest
+
+# Skip reason for commands intentionally removed in Rust CLI migration
+RUST_CLI_NOT_IMPLEMENTED = (
+    "Command intentionally removed - not migrated to Rust CLI. "
+    "These legacy commands (import, backfill, new, setup, remove) are no longer needed. "
+    "The desktop app handles these features directly via UI, not CLI."
+)
+
 
 def run_cli(
     args: list[str], treeline_dir: str, input_text: str | None = None
@@ -325,6 +334,7 @@ class TestTagCommand:
             json.loads(result.stdout)
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestNewCommand:
     """Tests for tl new command."""
 
@@ -387,6 +397,7 @@ class TestNewCommand:
             assert result.returncode == 0
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestBackfillCommand:
     """Tests for tl backfill command."""
 
@@ -415,6 +426,7 @@ class TestBackfillCommand:
             assert result.returncode == 0
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestImportCommand:
     """Tests for tl import command."""
 
@@ -645,6 +657,7 @@ class TestImportCommand:
             assert "columnMappings" in profiles["jsontest"]
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestRemoveCommand:
     """Tests for tl remove command."""
 
@@ -661,6 +674,7 @@ class TestRemoveCommand:
             )
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestSetupCommand:
     """Tests for tl setup command."""
 

@@ -13,6 +13,15 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import pytest
+
+# Skip reason for commands intentionally removed in Rust CLI migration
+RUST_CLI_NOT_IMPLEMENTED = (
+    "Command intentionally removed - not migrated to Rust CLI. "
+    "These legacy commands (import, backfill, new, setup, remove) are no longer needed. "
+    "The desktop app handles these features directly via UI, not CLI."
+)
+
 
 # Toggle to switch between testing Python or Rust CLI
 USE_RUST_CLI = True  # Set to False to test Python CLI
@@ -267,6 +276,7 @@ class TestTagsStorage:
             assert result.returncode == 0, f"list_concat failed: {result.stderr}"
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestImportDebitCredit:
     """Tests for import with debit/credit columns."""
 
@@ -382,6 +392,7 @@ class TestImportDebitCredit:
             assert result.returncode == 0, f"Import with --debit-negative failed: {result.stderr}"
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestImportDeduplication:
     """Tests for import deduplication via fingerprints."""
 
@@ -448,6 +459,7 @@ class TestImportDeduplication:
             )
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestBackfillBalances:
     """Tests for backfill balances command - CRITICAL: must calculate historical balances."""
 
@@ -493,6 +505,7 @@ class TestBackfillBalances:
             # The key is that it accepts and uses the --days parameter
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestImportFingerprint:
     """Tests for import fingerprint normalization."""
 
@@ -542,6 +555,7 @@ class TestImportFingerprint:
             assert count >= 1, "Import should have created at least one transaction"
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestImportAmountParsing:
     """Tests for import amount parsing."""
 
@@ -583,6 +597,7 @@ class TestImportAmountParsing:
                 assert abs(amount + 100.0) < 0.01, f"Expected -100.00, got {amount}"
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestImportDateFormats:
     """Tests for import date format parsing."""
 
@@ -654,6 +669,7 @@ class TestQueryCommand:
             assert len(lines) >= 2, "CSV should have header and data"
 
 
+@pytest.mark.skip(reason=RUST_CLI_NOT_IMPLEMENTED)
 class TestRemoveCommand:
     """Tests for remove command."""
 
