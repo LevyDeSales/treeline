@@ -19,11 +19,22 @@ pub struct DuckDbRepository {
 
 impl DuckDbRepository {
     /// Create a new DuckDB repository
-    pub fn new(db_path: &Path, password: Option<&str>) -> Result<Self> {
-        let conn = if let Some(pwd) = password {
-            // Open encrypted database
-            let conn = Connection::open(db_path)?;
-            conn.execute(&format!("PRAGMA key = '{}'", pwd), [])?;
+    ///
+    /// For encrypted databases, uses DuckDB's ATTACH with ENCRYPTION_KEY.
+    /// The key should be the hex-encoded derived key from Argon2.
+    pub fn new(db_path: &Path, encryption_key: Option<&str>) -> Result<Self> {
+        let conn = if let Some(key) = encryption_key {
+            // Encrypted database: open in-memory first, then ATTACH encrypted file
+            let conn = Connection::open_in_memory()?;
+            conn.execute(
+                &format!(
+                    "ATTACH '{}' AS main_db (ENCRYPTION_KEY '{}')",
+                    db_path.display(),
+                    key
+                ),
+                [],
+            )?;
+            conn.execute("USE main_db", [])?;
             conn
         } else {
             Connection::open(db_path)?
