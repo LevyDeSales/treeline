@@ -171,6 +171,24 @@ impl ImportService {
         // Generate batch ID for this import
         let batch_id = format!("import_{}", chrono::Utc::now().format("%Y%m%d_%H%M%S"));
 
+        // For preview mode, return all parsed transactions without deduplication
+        // User wants to see what's in the CSV, not what will be imported
+        if preview_only {
+            return Ok(ImportResult {
+                batch_id,
+                discovered,
+                imported: 0, // Not importing in preview
+                skipped: skipped as i64,
+                fingerprints_checked: 0, // Not checking in preview
+                preview: true,
+                transactions: Some(transactions.iter().map(|t| TransactionPreview {
+                    date: t.transaction_date.to_string(),
+                    amount: t.amount.to_string(),
+                    description: t.description.clone(),
+                }).collect()),
+            });
+        }
+
         // Deduplicate: check which fingerprints already exist
         let mut new_transactions = Vec::new();
         let mut duplicate_count = 0i64;
@@ -187,10 +205,8 @@ impl ImportService {
 
         let imported = new_transactions.len() as i64;
 
-        if !preview_only {
-            for tx in &new_transactions {
-                self.repository.upsert_transaction(tx)?;
-            }
+        for tx in &new_transactions {
+            self.repository.upsert_transaction(tx)?;
         }
 
         Ok(ImportResult {
@@ -199,16 +215,8 @@ impl ImportService {
             imported,
             skipped: skipped + duplicate_count,
             fingerprints_checked,
-            preview: preview_only,
-            transactions: if preview_only {
-                Some(new_transactions.iter().map(|t| TransactionPreview {
-                    date: t.transaction_date.to_string(),
-                    amount: t.amount.to_string(),
-                    description: t.description.clone(),
-                }).collect())
-            } else {
-                None
-            },
+            preview: false,
+            transactions: None,
         })
     }
 
