@@ -13,8 +13,10 @@ repository = "https://github.com/treeline-money/treeline"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
-# Database
-duckdb = { version = "1.0", features = ["bundled"] }
+# Database (1.4+ required for encryption support)
+# Note: ICU extension not available as Cargo feature (crates.io size limit)
+# All date functions use Rust-computed dates to avoid ICU dependency
+duckdb = { version = "1.4", features = ["bundled", "json"] }
 
 # Async runtime
 tokio = { version = "1.0", features = ["full"] }

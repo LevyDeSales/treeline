@@ -47,11 +47,9 @@ impl DuckDbRepository {
             Connection::open_with_flags(db_path, config)?
         };
 
-        // Explicitly load required extensions (since autoloading is disabled)
-        // JSON: needed for json_extract_string, etc.
-        conn.execute("LOAD json", [])?;
-        // Note: ICU is NOT loaded - all date functions now use Rust-computed dates
-        // to avoid ICU extension dependency and macOS code signing issues
+        // Note: JSON extension is statically linked via Cargo feature "json"
+        // No LOAD required - it's compiled into DuckDB
+        // ICU is NOT included - all date functions use Rust-computed dates
 
         Ok(Self {
             conn: Mutex::new(conn),
