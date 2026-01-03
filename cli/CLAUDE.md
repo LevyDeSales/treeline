@@ -1,5 +1,13 @@
 # CLI Development Guidelines
 
+> **NOTE:** The CLI has been rewritten in Rust. See `rust-core/` for the current implementation.
+> The Python CLI in this directory is legacy and no longer actively developed.
+> The Tauri desktop app embeds `treeline-core` (the Rust library), not the CLI binary.
+
+## Legacy Python CLI
+
+The documentation below applies to the legacy Python CLI.
+
 ## Code Style
 
 ### Python

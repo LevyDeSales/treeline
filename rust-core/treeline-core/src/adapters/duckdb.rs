@@ -47,9 +47,11 @@ impl DuckDbRepository {
             Connection::open_with_flags(db_path, config)?
         };
 
-        // Explicitly load the JSON extension (needed for json_extract_string, etc.)
-        // This is safe because the json extension is bundled with DuckDB
+        // Explicitly load required extensions (since autoloading is disabled)
+        // JSON: needed for json_extract_string, etc.
         conn.execute("LOAD json", [])?;
+        // ICU: needed for current_date, date functions in some DuckDB builds
+        let _ = conn.execute("LOAD icu", []); // Ignore errors - ICU may not be available
 
         Ok(Self {
             conn: Mutex::new(conn),
@@ -802,10 +804,12 @@ impl DuckDbRepository {
 
     pub fn check_future_transactions(&self) -> Result<i64> {
         let conn = self.conn.lock().unwrap();
+        // Use Rust-computed date to avoid ICU extension dependency
+        let tomorrow = (chrono::Utc::now() + chrono::Duration::days(1)).format("%Y-%m-%d").to_string();
         let count: i64 = conn.query_row(
             "SELECT COUNT(*) FROM sys_transactions
-             WHERE transaction_date > CURRENT_DATE + INTERVAL '1 day' AND deleted_at IS NULL",
-            [],
+             WHERE transaction_date > ? AND deleted_at IS NULL",
+            params![tomorrow],
             |row| row.get(0),
         )?;
         Ok(count)
@@ -839,16 +843,18 @@ impl DuckDbRepository {
     /// Check for transactions with unreasonable dates (before 1970 or more than 1 year in future)
     pub fn check_date_sanity(&self) -> Result<Vec<String>> {
         let conn = self.conn.lock().unwrap();
+        // Use Rust-computed date to avoid ICU extension dependency
+        let one_year_future = (chrono::Utc::now() + chrono::Duration::days(365)).format("%Y-%m-%d").to_string();
         let mut stmt = conn.prepare(
             "SELECT transaction_id, transaction_date, description, amount
              FROM sys_transactions
              WHERE deleted_at IS NULL
-               AND (transaction_date > CURRENT_DATE + INTERVAL '365 day'
+               AND (transaction_date > ?
                     OR transaction_date < '1970-01-01')
              LIMIT 100"
         )?;
 
-        let results: Vec<String> = stmt.query_map([], |row| {
+        let results: Vec<String> = stmt.query_map(params![one_year_future], |row| {
             let tx_id: String = row.get(0)?;
             let date: String = row.get(1)?;
             let desc: Option<String> = row.get(2)?;
