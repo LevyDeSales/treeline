@@ -10,7 +10,7 @@ Your financial data stays on your computer. No cloud accounts, no subscriptions,
 
 | Directory | Description |
 |-----------|-------------|
-| `cli/` | Python CLI |
+| `rust-core/` | Rust core library (business logic, database, sync) |
 | `plugin-sdk/` | TypeScript SDK for building UI plugins |
 | `plugin-template/` | Starter template for new plugins |
 

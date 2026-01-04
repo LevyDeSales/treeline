@@ -44,7 +44,7 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-# Remove 'v' prefix if present for pyproject.toml
+# Remove 'v' prefix if present for version number
 VERSION_NUMBER=${VERSION#v}
 
 # Validate version format (should be semver)
@@ -90,24 +90,6 @@ fi
 echo -e "${GREEN}Creating release ${VERSION}${NC}"
 echo ""
 
-# Update version in cli/pyproject.toml
-echo -e "${YELLOW}Updating version in cli/pyproject.toml...${NC}"
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    # macOS
-    sed -i '' "s/^version = \".*\"/version = \"${VERSION_NUMBER}\"/" cli/pyproject.toml
-else
-    # Linux
-    sed -i "s/^version = \".*\"/version = \"${VERSION_NUMBER}\"/" cli/pyproject.toml
-fi
-
-# Verify the CLI change
-UPDATED_VERSION=$(grep "^version = " cli/pyproject.toml | cut -d'"' -f2)
-if [ "$UPDATED_VERSION" != "$VERSION_NUMBER" ]; then
-    echo -e "${RED}Error: Failed to update version in pyproject.toml${NC}"
-    exit 1
-fi
-echo -e "${GREEN}✓ Updated CLI version to ${VERSION_NUMBER}${NC}"
-
 # Update version in plugin-sdk/package.json
 echo -e "${YELLOW}Updating version in plugin-sdk/package.json...${NC}"
 if [[ "$OSTYPE" == "darwin"* ]]; then
@@ -126,16 +108,9 @@ if [ "$SDK_UPDATED_VERSION" != "$VERSION_NUMBER" ]; then
 fi
 echo -e "${GREEN}✓ Updated plugin-sdk version to ${VERSION_NUMBER}${NC}"
 
-# Update uv.lock to match new version
-echo -e "${YELLOW}Updating uv.lock...${NC}"
-cd cli
-uv lock
-cd ..
-echo -e "${GREEN}✓ Updated uv.lock${NC}"
-
 # Commit version bump
 echo -e "${YELLOW}Committing version bump...${NC}"
-git add cli/pyproject.toml cli/uv.lock plugin-sdk/package.json
+git add plugin-sdk/package.json
 git commit -m "Bump version to ${VERSION}"
 echo -e "${GREEN}✓ Committed version bump${NC}"
 
@@ -178,7 +153,7 @@ if [ -z "$NOTES" ]; then
     if [ -n "$CLAUDE_CMD" ]; then
         echo -e "${YELLOW}Using Claude to generate user-friendly release notes...${NC}"
 
-        PROMPT="Generate concise, user-friendly release notes for Treeline CLI (a personal finance CLI tool) version ${VERSION}.
+        PROMPT="Generate concise, user-friendly release notes for Treeline (a personal finance app) version ${VERSION}.
 
 Here are the commits since the last release:
 ${COMMITS}
@@ -234,7 +209,7 @@ echo ""
 echo -e "${GREEN}✓ Release ${VERSION} created successfully!${NC}"
 echo ""
 echo "The GitHub Actions workflow will now:"
-echo "  1. Run Python and Rust tests"
+echo "  1. Run Rust tests"
 echo "  2. Publish plugin-sdk to npm"
 echo ""
 echo "Monitor progress at: https://github.com/treeline-money/treeline/actions"

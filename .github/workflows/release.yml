@@ -14,26 +14,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Python tests (unit tests only, smoke tests require CLI features being removed)
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Python dependencies
-        working-directory: cli
-        run: uv sync --locked --dev
-
-      - name: Run Python unit tests
-        working-directory: cli
-        run: uv run pytest tests/unit
-
-      # Rust tests
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
