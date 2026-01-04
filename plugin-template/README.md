@@ -74,7 +74,7 @@ This tags the release and pushes to GitHub. The included GitHub Action automatic
 ## Submit to Community Plugins
 
 1. Ensure your plugin has at least one GitHub release
-2. Open a PR to [treeline-money](https://github.com/zack-schrag/treeline-money) adding your plugin to `community-plugins.json`:
+2. Open a PR to [treeline-releases](https://github.com/treeline-money/treeline-releases) adding your plugin to `community-plugins.json`:
 
 ```json
 {
@@ -88,5 +88,5 @@ This tags the release and pushes to GitHub. The included GitHub Action automatic
 
 ## Documentation
 
-- **[Full SDK Reference](https://github.com/zack-schrag/treeline-money/blob/main/docs/plugins.md)** - Complete API documentation
+- **[Full SDK Reference](https://github.com/treeline-money/treeline#building-plugins)** - Complete plugin development guide
 - **[AGENTS.md](./AGENTS.md)** - Quick reference for AI-assisted development

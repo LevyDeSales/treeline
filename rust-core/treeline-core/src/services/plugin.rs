@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -9,10 +10,24 @@ use anyhow::{Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+// Embed plugin template files at compile time
+// These point to the actual plugin-template directory, so there's no duplication
+mod embedded_template {
+    pub const MANIFEST_JSON: &str = include_str!("../../../../plugin-template/manifest.json");
+    pub const PACKAGE_JSON: &str = include_str!("../../../../plugin-template/package.json");
+    pub const TSCONFIG_JSON: &str = include_str!("../../../../plugin-template/tsconfig.json");
+    pub const VITE_CONFIG_TS: &str = include_str!("../../../../plugin-template/vite.config.ts");
+    pub const SVELTE_CONFIG_JS: &str = include_str!("../../../../plugin-template/svelte.config.js");
+    pub const GITIGNORE: &str = include_str!("../../../../plugin-template/.gitignore");
+    pub const SRC_INDEX_TS: &str = include_str!("../../../../plugin-template/src/index.ts");
+    pub const SRC_VIEW_SVELTE: &str = include_str!("../../../../plugin-template/src/HelloWorldView.svelte");
+    pub const SCRIPTS_RELEASE_SH: &str = include_str!("../../../../plugin-template/scripts/release.sh");
+    pub const GITHUB_WORKFLOW: &str = include_str!("../../../../plugin-template/.github/workflows/release.yml");
+}
+
 /// Plugin service for managing external plugins
 pub struct PluginService {
     plugins_dir: PathBuf,
-    template_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Serialize)]
@@ -66,13 +81,10 @@ pub struct UpdateInfo {
 impl PluginService {
     pub fn new(treeline_dir: &Path) -> Self {
         let plugins_dir = treeline_dir.join("plugins");
-        // Try to find template directory (relative to CLI location)
-        let template_dir = None; // Will be set based on environment
-
-        Self { plugins_dir, template_dir }
+        Self { plugins_dir }
     }
 
-    /// Create a new plugin from template
+    /// Create a new plugin from embedded template
     pub fn create_plugin(&self, name: &str, target_dir: Option<&Path>) -> Result<PluginResult> {
         // Validate name
         let valid_name = name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_');
@@ -95,39 +107,54 @@ impl PluginService {
             });
         }
 
-        // Find plugin template
-        let template_dir = self.find_template_dir()?;
+        // Create directory structure
+        fs::create_dir_all(&plugin_dir)?;
+        fs::create_dir_all(plugin_dir.join("src"))?;
+        fs::create_dir_all(plugin_dir.join("scripts"))?;
+        fs::create_dir_all(plugin_dir.join(".github/workflows"))?;
 
-        // Copy template
-        copy_dir_recursive(&template_dir, &plugin_dir)?;
+        // Compute plugin names
+        let table_safe_name = name.replace('-', "_");
+        let display_name = name.replace('-', " ").replace('_', " ");
+        let display_name: String = display_name.split_whitespace()
+            .map(|word| {
+                let mut chars = word.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(first) => first.to_uppercase().chain(chars).collect(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
 
-        // Update manifest.json with plugin name
-        let manifest_path = plugin_dir.join("manifest.json");
-        if manifest_path.exists() {
-            let content = fs::read_to_string(&manifest_path)?;
-            let mut manifest: serde_json::Value = serde_json::from_str(&content)?;
+        // Write template files with customized manifest
+        let mut manifest: serde_json::Value = serde_json::from_str(embedded_template::MANIFEST_JSON)?;
+        manifest["id"] = serde_json::Value::String(name.to_string());
+        manifest["name"] = serde_json::Value::String(display_name);
+        manifest["permissions"] = serde_json::json!({
+            "read": ["transactions", "accounts"],
+            "schemaName": format!("plugin_{}", table_safe_name)
+        });
+        fs::write(plugin_dir.join("manifest.json"), serde_json::to_string_pretty(&manifest)?)?;
 
-            let table_safe_name = name.replace('-', "_");
-            let display_name = name.replace('-', " ").replace('_', " ");
-            let display_name: String = display_name.split_whitespace()
-                .map(|word| {
-                    let mut chars = word.chars();
-                    match chars.next() {
-                        None => String::new(),
-                        Some(first) => first.to_uppercase().chain(chars).collect(),
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(" ");
+        // Write other template files as-is
+        fs::write(plugin_dir.join("package.json"), embedded_template::PACKAGE_JSON)?;
+        fs::write(plugin_dir.join("tsconfig.json"), embedded_template::TSCONFIG_JSON)?;
+        fs::write(plugin_dir.join("vite.config.ts"), embedded_template::VITE_CONFIG_TS)?;
+        fs::write(plugin_dir.join("svelte.config.js"), embedded_template::SVELTE_CONFIG_JS)?;
+        fs::write(plugin_dir.join(".gitignore"), embedded_template::GITIGNORE)?;
+        fs::write(plugin_dir.join("src/index.ts"), embedded_template::SRC_INDEX_TS)?;
+        fs::write(plugin_dir.join("src/HelloWorldView.svelte"), embedded_template::SRC_VIEW_SVELTE)?;
+        fs::write(plugin_dir.join(".github/workflows/release.yml"), embedded_template::GITHUB_WORKFLOW)?;
 
-            manifest["id"] = serde_json::Value::String(name.to_string());
-            manifest["name"] = serde_json::Value::String(display_name);
-            manifest["permissions"] = serde_json::json!({
-                "read": ["transactions", "accounts"],
-                "schemaName": format!("plugin_{}", table_safe_name)
-            });
-
-            fs::write(&manifest_path, serde_json::to_string_pretty(&manifest)?)?;
+        // Write release script and make executable
+        let release_script_path = plugin_dir.join("scripts/release.sh");
+        fs::write(&release_script_path, embedded_template::SCRIPTS_RELEASE_SH)?;
+        #[cfg(unix)]
+        {
+            let mut perms = fs::metadata(&release_script_path)?.permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&release_script_path, perms)?;
         }
 
         Ok(PluginResult {
@@ -136,31 +163,6 @@ impl PluginService {
             install_dir: Some(plugin_dir.to_string_lossy().to_string()),
             ..Default::default()
         })
-    }
-
-    fn find_template_dir(&self) -> Result<PathBuf> {
-        // Look for plugin-template in multiple locations
-        let possible_paths: Vec<PathBuf> = [
-            // Environment variable for explicit override
-            std::env::var("TREELINE_PLUGIN_TEMPLATE").ok().map(PathBuf::from),
-            // Relative to treeline directory (~/.treeline/../plugin-template)
-            self.plugins_dir.parent().and_then(|p| p.parent()).map(|p| p.join("plugin-template")),
-            // Relative to the executable
-            std::env::current_exe().ok().and_then(|p| p.parent().map(|pp| pp.join("plugin-template"))),
-            // Current working directory
-            std::env::current_dir().ok().map(|p| p.join("plugin-template")),
-            // Common install locations
-            std::env::var("HOME").ok().map(|h| PathBuf::from(h).join(".treeline").join("plugin-template")),
-            Some(PathBuf::from("/usr/local/share/treeline/plugin-template")),
-        ].into_iter().flatten().collect();
-
-        for path in possible_paths {
-            if path.exists() {
-                return Ok(path);
-            }
-        }
-
-        anyhow::bail!("Plugin template not found. Set TREELINE_PLUGIN_TEMPLATE environment variable or ensure plugin-template directory exists in ~/.treeline/")
     }
 
     /// Install a plugin from local directory or GitHub URL
@@ -584,32 +586,6 @@ impl Default for PluginResult {
             error: None,
         }
     }
-}
-
-fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
-    fs::create_dir_all(dst)?;
-
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let path = entry.path();
-        let file_name = path.file_name().unwrap();
-
-        // Skip certain directories
-        let name = file_name.to_string_lossy();
-        if name == "node_modules" || name == "dist" || name == ".git" || name.ends_with(".log") {
-            continue;
-        }
-
-        let dst_path = dst.join(file_name);
-
-        if path.is_dir() {
-            copy_dir_recursive(&path, &dst_path)?;
-        } else {
-            fs::copy(&path, &dst_path)?;
-        }
-    }
-
-    Ok(())
 }
 
 fn version_compare(v1: &str, v2: &str) -> i32 {

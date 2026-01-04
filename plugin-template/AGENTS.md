@@ -133,4 +133,4 @@ icon: "gift"     // Also works
 
 ## Full Documentation
 
-See https://github.com/treeline-money/treeline
+See https://github.com/treeline-money/treeline#building-plugins
