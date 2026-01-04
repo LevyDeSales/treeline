@@ -132,7 +132,7 @@ impl SimpleFINClient {
         );
 
         let client = Client::builder()
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(120))
             .build()?;
 
         Ok(Self {
@@ -314,7 +314,7 @@ impl SimpleFINClient {
     /// Map request errors to user-friendly messages
     fn map_request_error(&self, error: reqwest::Error) -> anyhow::Error {
         if error.is_timeout() {
-            anyhow::anyhow!("Connection timed out after 30 seconds")
+            anyhow::anyhow!("Connection timed out after 120 seconds")
         } else if error.is_connect() {
             anyhow::anyhow!("Unable to connect to SimpleFIN servers")
         } else {
@@ -479,7 +479,7 @@ impl IntegrationProvider for SimpleFINProvider {
 
         // Claim the token to get access URL
         let client = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
+            .timeout(std::time::Duration::from_secs(120))
             .build()
             .map_err(|e| crate::domain::result::Error::Sync(format!("Failed to create HTTP client: {}", e)))?;
 

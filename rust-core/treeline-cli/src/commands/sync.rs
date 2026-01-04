@@ -7,7 +7,8 @@ use super::get_context;
 
 pub fn run(integration: Option<String>, dry_run: bool, json: bool) -> Result<()> {
     let ctx = get_context()?;
-    let result = ctx.sync_service.sync(integration.as_deref(), dry_run)?;
+    // CLI always syncs with transactions (balances_only = false)
+    let result = ctx.sync_service.sync(integration.as_deref(), dry_run, false)?;
 
     if json {
         println!("{}", serde_json::to_string_pretty(&result)?);

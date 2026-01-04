@@ -45,7 +45,10 @@ impl SyncService {
     }
 
     /// Sync from all integrations or a specific one
-    pub fn sync(&self, integration: Option<&str>, dry_run: bool) -> Result<SyncResult> {
+    ///
+    /// If `balances_only` is true, skips transaction fetching entirely.
+    /// This is useful for users who just want to track account balances.
+    pub fn sync(&self, integration: Option<&str>, dry_run: bool, balances_only: bool) -> Result<SyncResult> {
         let integrations = self.repository.get_integrations()?;
         let mut results = Vec::new();
 
@@ -62,7 +65,7 @@ impl SyncService {
         }
 
         for int in integrations_to_sync {
-            let result = self.sync_integration(&int.name, &int.settings, dry_run)?;
+            let result = self.sync_integration(&int.name, &int.settings, dry_run, balances_only)?;
             results.push(result);
         }
 
@@ -77,6 +80,7 @@ impl SyncService {
         name: &str,
         settings: &serde_json::Value,
         dry_run: bool,
+        balances_only: bool,
     ) -> Result<IntegrationSyncResult> {
         // Look up provider by name
         let provider = self.providers.get(name)
@@ -150,43 +154,49 @@ impl SyncService {
             }
         }
 
-        // Fetch transactions (excluding balances-only accounts)
-        // Check accountSettings for balancesOnly flag on each account
-        let account_settings = settings
-            .get("accountSettings")
-            .and_then(|v| v.as_object());
+        // Skip transaction fetching entirely if balances_only mode
+        let (discovered, new_count, skipped_count) = if balances_only {
+            (0, 0, 0)
+        } else {
+            // Fetch transactions (excluding per-account balances-only settings)
+            // Check accountSettings for balancesOnly flag on each account
+            let account_settings = settings
+                .get("accountSettings")
+                .and_then(|v| v.as_object());
 
-        let ext_account_ids: Vec<String> = external_to_internal
-            .keys()
-            .filter(|ext_id| {
-                // Include account only if NOT marked as balancesOnly
-                if let Some(settings_map) = account_settings {
-                    if let Some(acc_settings) = settings_map.get(*ext_id) {
-                        // Default to false if balancesOnly not present
-                        return !acc_settings
-                            .get("balancesOnly")
-                            .and_then(|v| v.as_bool())
-                            .unwrap_or(false);
+            let ext_account_ids: Vec<String> = external_to_internal
+                .keys()
+                .filter(|ext_id| {
+                    // Include account only if NOT marked as balancesOnly
+                    if let Some(settings_map) = account_settings {
+                        if let Some(acc_settings) = settings_map.get(*ext_id) {
+                            // Default to false if balancesOnly not present
+                            return !acc_settings
+                                .get("balancesOnly")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false);
+                        }
                     }
-                }
-                // No settings for this account = include it
-                true
-            })
-            .cloned()
-            .collect();
+                    // No settings for this account = include it
+                    true
+                })
+                .cloned()
+                .collect();
 
-        let txs_result = provider.get_transactions(start_date, end_date, &ext_account_ids, settings)?;
-        provider_warnings.extend(txs_result.warnings);
+            let txs_result = provider.get_transactions(start_date, end_date, &ext_account_ids, settings)?;
+            provider_warnings.extend(txs_result.warnings);
 
-        // Process transactions with deduplication
-        let (new_count, skipped_count) = self.process_transactions(
-            name,
-            txs_result.transactions,
-            &external_to_internal,
-            dry_run,
-        )?;
+            // Process transactions with deduplication
+            let (new_count, skipped_count) = self.process_transactions(
+                name,
+                txs_result.transactions,
+                &external_to_internal,
+                dry_run,
+            )?;
 
-        let discovered = new_count + skipped_count;
+            let discovered = new_count + skipped_count;
+            (discovered, new_count, skipped_count)
+        };
 
         Ok(IntegrationSyncResult {
             integration: name.to_string(),

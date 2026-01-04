@@ -205,6 +205,11 @@ impl ImportService {
 
         let imported = new_transactions.len() as i64;
 
+        // Add batch_id to each transaction before inserting
+        for tx in &mut new_transactions {
+            tx.external_ids.insert("csv_import.batch_id".to_string(), batch_id.clone());
+        }
+
         for tx in &new_transactions {
             self.repository.upsert_transaction(tx)?;
         }
