@@ -31,11 +31,7 @@ tl status
 
 > **For agents:** If `tl` commands fail with "command not found", the CLI needs to be installed. OpenClaw handles installation automatically via the skill metadata. Start with demo mode so users can try queries immediately.
 
-### Installing the CLI
-
-The Treeline CLI is installed automatically by OpenClaw when this skill is added. The binary is downloaded directly from [GitHub releases](https://github.com/treeline-money/treeline/releases).
-
-Verify with `tl --version`.
+Verify the CLI is available with `tl --version`. Start with demo mode so users can try queries immediately.
 
 **Optional:** Download the [desktop app](https://treeline.money/download) for visual exploration of your data.
 
