@@ -339,7 +339,34 @@ jobs:
           cd artifacts/sdk-npm-package
           npm publish *.tgz --access public --provenance
 
+      - name: Check if OpenClaw skill changed
+        id: openclaw_check
+        run: |
+          # Find the previous release tag
+          PREV_TAG=$(git tag --sort=-v:refname | head -2 | tail -1)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, will publish"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Comparing openclaw/ against previous tag: $PREV_TAG"
+
+          # Compare skill content excluding the version line
+          PREV_CONTENT=$(git show "$PREV_TAG:openclaw/SKILL.md" 2>/dev/null | grep -v "^version: " || echo "")
+          CURR_CONTENT=$(grep -v "^version: " openclaw/SKILL.md || echo "")
+
+          if [ "$PREV_CONTENT" = "$CURR_CONTENT" ]; then
+            echo "OpenClaw skill unchanged, skipping ClawHub publish"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "OpenClaw skill has changes, will publish"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Update OpenClaw skill version
+        if: steps.openclaw_check.outputs.changed == 'true'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
 
@@ -350,6 +377,7 @@ jobs:
           grep "^version:" openclaw/SKILL.md
 
       - name: Publish OpenClaw skill to ClawHub
+        if: steps.openclaw_check.outputs.changed == 'true'
         continue-on-error: true
         env:
           CLAWHUB_TOKEN: ${{ secrets.CLAWHUB_TOKEN }}
