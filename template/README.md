@@ -12,7 +12,7 @@ cd my-plugin
 npm install
 ```
 
-### 2. Build and test
+### 2. Build and install
 
 ```bash
 npm run build
@@ -20,14 +20,18 @@ tl plugin install .
 # Restart Treeline to load the plugin
 ```
 
-### 3. Develop
+### 3. Develop with hot-reload
 
-Edit `src/index.ts` and `src/*View.svelte` to build your plugin.
+1. Enable hot-reload in Treeline: **Settings → Plugin Hot-Reload → On**
+2. Start watch mode:
 
-Use watch mode for faster iteration:
 ```bash
 npm run dev
 ```
+
+This builds directly to `~/.treeline/plugins/<id>/` on every save. With hot-reload enabled, Treeline picks up changes automatically — no restart needed.
+
+Edit `src/index.ts` and `src/*View.svelte` to build your plugin.
 
 ## Project Structure
 

@@ -173,14 +173,16 @@ export async function initializePlugins(): Promise<void> {
   // Get list of disabled plugins
   const disabledPlugins = await getDisabledPlugins();
 
+  // Create a map of discovered manifest ID -> loaded external plugin info
+  // The discovered manifest ID (from manifest.json on disk) is the canonical ID for external plugins.
+  // This ensures the ID used in registration matches the directory name (which the file watcher uses),
+  // even if the JS bundle has a stale/different ID.
+  const externalManifestMap = new Map(
+    loadedExternalPlugins.map(lep => [lep.discoveredManifest.id, lep])
+  );
+
   // Extract just the plugin objects for the combined list
   const externalPlugins = loadedExternalPlugins.map(lep => lep.plugin);
-
-  // Create a map of external plugin ID -> discovered manifest (from manifest.json file)
-  // This is used to get permissions from the file rather than the bundled JS
-  const externalManifestMap = new Map(
-    loadedExternalPlugins.map(lep => [lep.plugin.manifest.id, lep.discoveredManifest])
-  );
 
   // Combine core and external plugins
   const allPlugins = [...corePlugins, ...externalPlugins];
@@ -217,17 +219,27 @@ export async function initializePlugins(): Promise<void> {
     }
 
     try {
-      const pluginId = plugin.manifest.id;
-      const isExternal = externalPluginIds.has(pluginId);
+      const isExternal = externalPluginIds.has(plugin.manifest.id);
 
-      // Register plugin permissions (read/write/schemaName)
-      // For external plugins, use permissions from the manifest.json file (not bundled JS)
-      // This ensures locally-installed plugins get their updated permissions
-      let permissions;
+      // For external plugins, use the discovered manifest ID (from manifest.json on disk)
+      // as the canonical ID. This ensures registration matches the directory name
+      // (which the file watcher uses for hot-reload), even if the JS bundle has a
+      // stale/different ID embedded in it.
+      let pluginId: string;
+      let permissions: any;
       if (isExternal) {
-        const discoveredManifest = externalManifestMap.get(pluginId);
-        permissions = discoveredManifest?.permissions ?? {};
+        const loaded = externalManifestMap.get(plugin.manifest.id)
+          // Also try matching by plugin object reference in case JS ID differs from file manifest
+          || [...externalManifestMap.values()].find(lep => lep.plugin === plugin);
+        if (loaded) {
+          pluginId = loaded.discoveredManifest.id;
+          permissions = loaded.discoveredManifest.permissions ?? {};
+        } else {
+          pluginId = plugin.manifest.id;
+          permissions = plugin.manifest.permissions ?? {};
+        }
       } else {
+        pluginId = plugin.manifest.id;
         permissions = plugin.manifest.permissions ?? {};
       }
       // Extract read/write/create arrays (new format has them directly, old format had tables.read/write)
@@ -270,7 +282,7 @@ export async function initializePlugins(): Promise<void> {
         trackActivePlugin(pluginId, plugin);
       }
 
-      console.log(`✓ Loaded plugin: ${plugin.manifest.name} (${plugin.manifest.id})`);
+      console.log(`✓ Loaded plugin: ${plugin.manifest.name} (${pluginId})`);
     } catch (error) {
       console.error(`✗ Failed to load plugin: ${plugin.manifest.name}`, error);
     }

@@ -16,9 +16,18 @@ This is a Treeline plugin template. Treeline is a local-first personal finance a
 ```bash
 npm install          # Install dependencies
 npm run build        # Build to dist/index.js
-npm run dev          # Watch mode (rebuild on changes)
-tl plugin install .  # Install locally for testing
+tl plugin install .  # Install locally for testing (first time only)
+npm run dev          # Watch mode - builds to ~/.treeline/plugins/<id>/ with hot-reload
 ```
+
+## Dev Workflow (Hot-Reload)
+
+1. `tl plugin install .` — one-time install to register the plugin
+2. Enable hot-reload in Treeline: Settings → Plugin Hot-Reload → On
+3. `npm run dev` — starts vite in watch mode, builds directly to the installed plugin directory
+4. Edit source files → Treeline reloads the plugin automatically (no restart)
+
+Note: Migrations are skipped during hot-reload. Restart the app after adding new migrations.
 
 ## SDK Import
 

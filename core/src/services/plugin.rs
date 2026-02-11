@@ -144,7 +144,7 @@ impl PluginService {
         let mut manifest: serde_json::Value =
             serde_json::from_str(embedded_template::MANIFEST_JSON)?;
         manifest["id"] = serde_json::Value::String(name.to_string());
-        manifest["name"] = serde_json::Value::String(display_name);
+        manifest["name"] = serde_json::Value::String(display_name.clone());
         manifest["permissions"] = serde_json::json!({
             "read": ["transactions", "accounts"],
             "schemaName": format!("plugin_{}", table_safe_name)
@@ -153,6 +153,31 @@ impl PluginService {
             plugin_dir.join("manifest.json"),
             serde_json::to_string_pretty(&manifest)?,
         )?;
+
+        // Compute PascalCase name for component naming (e.g. "my-plugin" -> "MyPlugin")
+        let pascal_name: String = name
+            .split(|c: char| c == '-' || c == '_')
+            .map(|word| {
+                let mut chars = word.chars();
+                match chars.next() {
+                    None => String::new(),
+                    Some(first) => first.to_uppercase().chain(chars).collect(),
+                }
+            })
+            .collect();
+
+        // Customize src/index.ts with the plugin's actual names
+        let customized_index = embedded_template::SRC_INDEX_TS
+            .replace("HelloWorldView", &format!("{}View", pascal_name))
+            .replace("\"hello-world\"", &format!("\"{}\"", name))
+            .replace("\"Hello World\"", &format!("\"{}\"", display_name))
+            .replace("hello-world-view", &format!("{}-view", name))
+            .replace("hello-world.greet", &format!("{}.greet", name))
+            .replace("hello_world", &table_safe_name);
+
+        // Customize the Svelte view component
+        let customized_view = embedded_template::SRC_VIEW_SVELTE
+            .replace("Hello World", &display_name);
 
         // Write other template files as-is
         fs::write(
@@ -174,11 +199,11 @@ impl PluginService {
         fs::write(plugin_dir.join(".gitignore"), embedded_template::GITIGNORE)?;
         fs::write(
             plugin_dir.join("src/index.ts"),
-            embedded_template::SRC_INDEX_TS,
+            customized_index,
         )?;
         fs::write(
-            plugin_dir.join("src/HelloWorldView.svelte"),
-            embedded_template::SRC_VIEW_SVELTE,
+            plugin_dir.join(&format!("src/{}View.svelte", pascal_name)),
+            customized_view,
         )?;
         fs::write(
             plugin_dir.join(".github/workflows/release.yml"),
