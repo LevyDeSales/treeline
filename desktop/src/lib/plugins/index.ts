@@ -7,8 +7,10 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { registry, themeManager, getDisabledPlugins, executeQuery, executeQueryWithParams } from "../sdk";
+import { registry, themeManager, getDisabledPlugins, getAppSetting, executeQuery, executeQueryWithParams } from "../sdk";
 import type { Plugin, PluginContext, PluginMigration } from "../sdk/types";
+import { trackActivePlugin, startHotReload } from "./hotReload";
+import type { ExternalPluginInfo, LoadedExternalPlugin } from "./types";
 
 // Import core plugins
 import { plugin as queryPlugin } from "./query";
@@ -111,35 +113,6 @@ async function runPluginMigrations(
     console.error(`Failed to run migrations for plugin ${pluginId}:`, error);
     throw error;
   }
-}
-
-interface ExternalPluginInfo {
-  manifest: {
-    id: string;
-    name: string;
-    version: string;
-    description: string;
-    author: string;
-    main: string;
-    permissions?: {
-      tables?: {
-        read?: string[];
-        write?: string[];
-        create?: string[];
-      };
-      // Direct format (alternative to tables.read/write)
-      read?: string[];
-      write?: string[];
-      create?: string[];
-      schemaName?: string;
-    };
-  };
-  path: string;
-}
-
-interface LoadedExternalPlugin {
-  plugin: Plugin;
-  discoveredManifest: ExternalPluginInfo["manifest"];
 }
 
 /**
@@ -292,10 +265,25 @@ export async function initializePlugins(): Promise<void> {
       // Activate plugin
       await plugin.activate(context);
 
+      // Track external plugins for hot-reload deactivation support
+      if (isExternal) {
+        trackActivePlugin(pluginId, plugin);
+      }
+
       console.log(`✓ Loaded plugin: ${plugin.manifest.name} (${plugin.manifest.id})`);
     } catch (error) {
       console.error(`✗ Failed to load plugin: ${plugin.manifest.name}`, error);
     }
+  }
+
+  // Auto-start hot-reload if the setting is enabled
+  try {
+    const hotReloadEnabled = await getAppSetting("pluginHotReload");
+    if (hotReloadEnabled) {
+      await startHotReload();
+    }
+  } catch (error) {
+    console.error("Failed to start plugin hot-reload:", error);
   }
 }
 
