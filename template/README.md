@@ -92,5 +92,6 @@ This tags the release and pushes to GitHub. The included GitHub Action automatic
 
 ## Documentation
 
-- **[Full SDK Reference](https://github.com/treeline-money/treeline#building-plugins)** - Complete plugin development guide
+- **[Creating Plugins](https://treeline.money/docs/plugins/creating-plugins/)** - Full development guide
+- **[SDK Reference](https://treeline.money/docs/plugins/sdk-reference/)** - Complete API documentation
 - **[AGENTS.md](./AGENTS.md)** - Quick reference for AI-assisted development

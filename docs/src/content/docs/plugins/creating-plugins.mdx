@@ -21,14 +21,14 @@ npm install
 
 This creates a ready-to-build plugin with:
 
-- `manifest.json` - Plugin metadata
-- `src/index.ts` - Entry point
-- `src/HelloWorldView.svelte` - Example Svelte component
-- `vite.config.ts` - Build configuration
+- `manifest.json` - Plugin metadata (customized with your plugin name)
+- `src/index.ts` - Entry point (customized IDs, names, and schema)
+- `src/MyPluginView.svelte` - Example Svelte component (named after your plugin)
+- `vite.config.ts` - Build configuration (supports hot-reload dev mode)
 - `scripts/release.sh` - Release automation
 - `.github/workflows/release.yml` - GitHub Actions workflow
 
-The plugin name is already configured in `manifest.json`. Rename `HelloWorldView.svelte` to match your plugin.
+All files are customized with your plugin's name — no manual renaming needed.
 
 ## Project Structure
 
@@ -371,14 +371,20 @@ tl plugin install .
 
 After building and installing, open the Treeline app (or restart it if already open) to load your plugin.
 
-### Development Workflow
+### Development Workflow (Hot-Reload)
 
-1. Make changes to your code
-2. Run `npm run build` (or use `npm run dev` for watch mode)
-3. Restart the Treeline app to reload the plugin
-4. Test your changes
+For the fastest development experience, use hot-reload:
 
-**Note:** The app must be restarted to pick up plugin changes. Watch mode (`npm run dev`) automatically rebuilds when you save files, but you still need to restart the app to see your updates.
+1. Enable hot-reload in Treeline: **Settings > Plugin Hot-Reload > On**
+2. Start watch mode:
+
+```bash
+npm run dev
+```
+
+In watch mode, vite builds directly to `~/.treeline/plugins/<id>/` on every save. With hot-reload enabled, Treeline picks up changes automatically — no restart needed.
+
+**Note:** Database migrations are skipped during hot-reload to prevent half-typed migrations from executing. Restart the app after adding new migrations.
 
 ## Icons
 

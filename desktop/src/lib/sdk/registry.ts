@@ -97,6 +97,18 @@ class PluginRegistry {
     return this._views.get(viewId);
   }
 
+  hasView(viewId: string): boolean {
+    return this._views.has(viewId);
+  }
+
+  getViewIdsForPlugin(pluginId: string): Set<string> {
+    const viewIds = new Set<string>();
+    for (const [viewId, owner] of this._viewToPlugin.entries()) {
+      if (owner === pluginId) viewIds.add(viewId);
+    }
+    return viewIds;
+  }
+
   get commands(): Command[] {
     return Array.from(this._commands.values());
   }

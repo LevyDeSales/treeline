@@ -79,7 +79,13 @@ async function reloadPlugin(pluginId: string): Promise<void> {
     return;
   }
 
-  // 1. Call deactivate() on the old plugin instance if it exists
+  // 1. Remember open tabs for this plugin so we can restore them after reload
+  const pluginViewIds = registry.getViewIdsForPlugin(pluginId);
+  const openTabViewIds = registry.tabs
+    .filter((t) => pluginViewIds.has(t.viewId))
+    .map((t) => ({ viewId: t.viewId, wasActive: t.id === registry.activeTabId }));
+
+  // 2. Call deactivate() on the old plugin instance if it exists
   const oldPlugin = activePlugins.get(pluginId);
   if (oldPlugin?.deactivate) {
     try {
@@ -89,11 +95,11 @@ async function reloadPlugin(pluginId: string): Promise<void> {
     }
   }
 
-  // 2. Unregister everything the plugin has registered
+  // 3. Unregister everything the plugin has registered
   registry.unregisterPlugin(pluginId);
   activePlugins.delete(pluginId);
 
-  // 3. Re-discover plugins to get fresh manifest from disk
+  // 4. Re-discover plugins to get fresh manifest from disk
   const discovered = await invoke<ExternalPluginInfo[]>("discover_plugins");
   const pluginInfo = discovered.find((p) => p.manifest.id === pluginId);
 
@@ -103,7 +109,7 @@ async function reloadPlugin(pluginId: string): Promise<void> {
     return;
   }
 
-  // 4. Re-import the JS module with cache-busting query parameter
+  // 5. Re-import the JS module with cache-busting query parameter
   const pluginsDir = await invoke<string>("get_plugins_dir");
   const pluginPath = `${pluginsDir}/${pluginInfo.manifest.id}/${pluginInfo.manifest.main}`;
   const assetUrl = convertFileSrc(pluginPath);
@@ -129,7 +135,7 @@ async function reloadPlugin(pluginId: string): Promise<void> {
   // as completed, with no rollback mechanism. Developers should restart the app to run
   // new migrations.
 
-  // 5. Register permissions from the fresh manifest
+  // 6. Register permissions from the fresh manifest
   const permissions = pluginInfo.manifest.permissions ?? {};
   const tablePermissions = {
     read: permissions.read ?? permissions.tables?.read,
@@ -139,7 +145,7 @@ async function reloadPlugin(pluginId: string): Promise<void> {
   };
   registry.setPluginPermissions(pluginId, tablePermissions);
 
-  // 6. Create a fresh PluginContext and activate
+  // 7. Create a fresh PluginContext and activate
   const context: PluginContext = {
     registerSidebarSection: registry.registerSidebarSection.bind(registry),
     registerSidebarItem: (item) =>
@@ -155,6 +161,25 @@ async function reloadPlugin(pluginId: string): Promise<void> {
 
   await plugin.activate(context);
   activePlugins.set(pluginId, plugin);
+
+  // 8. Restore tabs that were open before the reload (if the view IDs still exist)
+  let restoredActive = false;
+  for (const { viewId, wasActive } of openTabViewIds) {
+    if (registry.hasView(viewId)) {
+      registry.openView(viewId);
+      if (wasActive) restoredActive = true;
+    }
+  }
+  // If the previously active tab was restored, make sure it's still active
+  // (openView already sets it as active, so this handles the common case)
+  if (restoredActive) {
+    const restoredTab = registry.tabs.find((t) =>
+      openTabViewIds.some((o) => o.wasActive && o.viewId === t.viewId)
+    );
+    if (restoredTab) {
+      registry.setActiveTab(restoredTab.id);
+    }
+  }
 
   console.log(`[hot-reload] Reloaded plugin: ${plugin.manifest.name} (${pluginId})`);
 }

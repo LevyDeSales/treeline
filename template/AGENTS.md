@@ -142,4 +142,4 @@ icon: "gift"     // Also works
 
 ## Full Documentation
 
-See https://github.com/treeline-money/treeline#building-plugins
+See https://treeline.money/docs/plugins/creating-plugins/
