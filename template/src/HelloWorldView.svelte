@@ -11,21 +11,13 @@
   // State
   let accountCount = $state(0);
   let transactionCount = $state(0);
+  let monthlySpending = $state(0);
   let isLoading = $state(true);
-  let theme = $state<"light" | "dark">("light");
 
   // Unsubscribe function for data refresh
   let unsubscribe: (() => void) | null = null;
 
   onMount(async () => {
-    // Get initial theme
-    theme = sdk.theme.current();
-
-    // Subscribe to theme changes
-    sdk.theme.subscribe((newTheme) => {
-      theme = newTheme as "light" | "dark";
-    });
-
     // Subscribe to data refresh events
     unsubscribe = sdk.onDataRefresh(() => {
       loadData();
@@ -54,6 +46,11 @@
         "SELECT COUNT(*) as count FROM transactions"
       );
       transactionCount = transactions[0]?.count ?? 0;
+
+      const spending = await sdk.query<{ total: number }>(
+        "SELECT COALESCE(SUM(-amount), 0) as total FROM transactions WHERE amount < 0 AND posted_date >= DATE_TRUNC('month', CURRENT_DATE)"
+      );
+      monthlySpending = spending[0]?.total ?? 0;
     } catch (e) {
       sdk.toast.error("Failed to load data", e instanceof Error ? e.message : String(e));
     } finally {
@@ -73,206 +70,93 @@
   }
 </script>
 
-<div class="container" class:dark={theme === "dark"}>
-  <h1>Hello World Plugin</h1>
-
-  <p class="description">
-    This plugin demonstrates the Treeline Plugin SDK.
-    It's loaded from <code>~/.treeline/plugins/</code>
-  </p>
-
-  <div class="stats-grid">
-    <div class="stat-card">
-      <span class="stat-label">Accounts</span>
-      <span class="stat-value">{isLoading ? "..." : accountCount}</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Transactions</span>
-      <span class="stat-value">{isLoading ? "..." : transactionCount}</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Theme</span>
-      <span class="stat-value">{theme}</span>
-    </div>
-    <div class="stat-card">
-      <span class="stat-label">Mod Key</span>
-      <span class="stat-value">{sdk.modKey}</span>
+<!-- Use .tl-view for the root container - inherits app theme automatically -->
+<div class="tl-view">
+  <div class="tl-header">
+    <div class="tl-header-left">
+      <h1 class="tl-title">Hello World Plugin</h1>
+      <p class="tl-subtitle">
+        This plugin demonstrates the Treeline Plugin SDK.
+      </p>
     </div>
   </div>
 
-  <div class="actions">
-    <button class="btn primary" onclick={showToastDemo}>
-      Show Toast
-    </button>
-    <button class="btn secondary" onclick={openQueryView}>
-      Open Query View
-    </button>
-    <button class="btn secondary" onclick={loadData}>
-      Refresh Data
-    </button>
-  </div>
+  <div class="tl-content">
+    <!-- Use .tl-cards / .tl-card for stat cards -->
+    <div class="tl-cards">
+      <div class="tl-card">
+        <span class="tl-card-label">Accounts</span>
+        <span class="tl-card-value">{isLoading ? "..." : accountCount}</span>
+      </div>
+      <div class="tl-card">
+        <span class="tl-card-label">Transactions</span>
+        <span class="tl-card-value">{isLoading ? "..." : transactionCount}</span>
+      </div>
+      <div class="tl-card">
+        <span class="tl-card-label">Spending This Month</span>
+        <span class="tl-card-value">{isLoading ? "..." : sdk.currency.format(monthlySpending)}</span>
+      </div>
+    </div>
 
-  <div class="info-section">
-    <h2>SDK Features</h2>
-    <ul>
-      <li><code>sdk.query(sql)</code> - Read data from the database</li>
-      <li><code>sdk.execute(sql)</code> - Write to your plugin's tables</li>
-      <li><code>sdk.toast.success/error/info()</code> - Show notifications</li>
-      <li><code>sdk.openView(viewId, props)</code> - Navigate to views</li>
-      <li><code>sdk.onDataRefresh(callback)</code> - React to data changes</li>
-      <li><code>sdk.theme.current()</code> - Get current theme</li>
-      <li><code>sdk.settings.get/set()</code> - Persist plugin settings</li>
-    </ul>
+    <div class="actions">
+      <button class="tl-btn tl-btn-primary" onclick={showToastDemo}>
+        Show Toast
+      </button>
+      <button class="tl-btn tl-btn-secondary" onclick={openQueryView}>
+        Open Query View
+      </button>
+      <button class="tl-btn tl-btn-secondary" onclick={loadData}>
+        Refresh Data
+      </button>
+    </div>
+
+    <div class="info-section">
+      <h2 class="tl-title">SDK Features</h2>
+      <ul>
+        <li><code>sdk.query(sql)</code> - Read data from the database</li>
+        <li><code>sdk.execute(sql)</code> - Write to your plugin's tables</li>
+        <li><code>sdk.toast.success/error/info()</code> - Show notifications</li>
+        <li><code>sdk.openView(viewId, props)</code> - Navigate to views</li>
+        <li><code>sdk.onDataRefresh(callback)</code> - React to data changes</li>
+        <li><code>sdk.currency.format(amount)</code> - Format as currency</li>
+        <li><code>sdk.settings.get/set()</code> - Persist plugin settings</li>
+      </ul>
+    </div>
   </div>
 </div>
 
 <style>
-  .container {
-    padding: 24px;
-    font-family: system-ui, -apple-system, sans-serif;
-    color: #1a1a1a;
-    background: #ffffff;
-    min-height: 100%;
+  /* Actions row */
+  .actions {
+    display: flex;
+    gap: var(--spacing-md, 12px);
+    margin-bottom: var(--spacing-lg, 16px);
   }
 
-  .container.dark {
-    color: #e5e5e5;
-    background: #1a1a1a;
-  }
-
-  h1 {
-    font-size: 24px;
-    font-weight: 600;
-    margin: 0 0 8px;
-  }
-
-  h2 {
-    font-size: 16px;
-    font-weight: 600;
-    margin: 0 0 12px;
-  }
-
-  .description {
-    color: #666;
-    margin: 0 0 24px;
-  }
-
-  .dark .description {
-    color: #999;
+  /* Info callout section */
+  .info-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md, 6px);
+    padding: var(--spacing-lg, 16px);
   }
 
   code {
-    font-family: ui-monospace, monospace;
+    font-family: var(--font-mono, ui-monospace, monospace);
     font-size: 13px;
-    background: #f3f4f6;
+    background: var(--code-bg, var(--bg-tertiary));
     padding: 2px 6px;
-    border-radius: 4px;
-  }
-
-  .dark code {
-    background: #2a2a2a;
-  }
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-
-  .stat-card {
-    background: #f8f9fa;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .dark .stat-card {
-    background: #2a2a2a;
-    border-color: #3a3a3a;
-  }
-
-  .stat-label {
-    font-size: 12px;
-    color: #666;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .dark .stat-label {
-    color: #888;
-  }
-
-  .stat-value {
-    font-size: 24px;
-    font-weight: 600;
-  }
-
-  .actions {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 24px;
-  }
-
-  .btn {
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all 0.15s;
-  }
-
-  .btn.primary {
-    background: #3b82f6;
-    color: white;
-  }
-
-  .btn.primary:hover {
-    background: #2563eb;
-  }
-
-  .btn.secondary {
-    background: #e5e7eb;
-    color: #374151;
-  }
-
-  .dark .btn.secondary {
-    background: #3a3a3a;
-    color: #e5e5e5;
-  }
-
-  .btn.secondary:hover {
-    background: #d1d5db;
-  }
-
-  .dark .btn.secondary:hover {
-    background: #4a4a4a;
-  }
-
-  .info-section {
-    background: #f0f9ff;
-    border: 1px solid #bae6fd;
-    border-radius: 8px;
-    padding: 16px;
-  }
-
-  .dark .info-section {
-    background: #1e3a5f;
-    border-color: #2563eb;
+    border-radius: var(--radius-sm, 4px);
   }
 
   ul {
-    margin: 0;
+    margin: var(--spacing-sm, 8px) 0 0;
     padding-left: 20px;
   }
 
   li {
-    margin-bottom: 8px;
-    font-size: 14px;
+    margin-bottom: var(--spacing-sm, 8px);
+    font-size: 13px;
+    color: var(--text-secondary);
   }
 </style>

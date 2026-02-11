@@ -23,9 +23,9 @@ npm run dev          # Watch mode - builds to ~/.treeline/plugins/<id>/ with hot
 ## Dev Workflow (Hot-Reload)
 
 1. `tl plugin install .` — one-time install to register the plugin
-2. Enable hot-reload in Treeline: Settings → Plugin Hot-Reload → On
+2. Enable hot-reload in Treeline: Settings > Plugin Hot-Reload > On
 3. `npm run dev` — starts vite in watch mode, builds directly to the installed plugin directory
-4. Edit source files → Treeline reloads the plugin automatically (no restart)
+4. Edit source files — Treeline reloads the plugin automatically (no restart)
 
 Note: Migrations are skipped during hot-reload. Restart the app after adding new migrations.
 
@@ -54,8 +54,8 @@ Views receive `sdk` via props:
 
 | Method | What it does |
 |--------|--------------|
-| `sdk.query(sql)` | Read data (SELECT queries) |
-| `sdk.execute(sql)` | Write to your plugin's tables only |
+| `sdk.query(sql, params?)` | Read data (returns array of objects) |
+| `sdk.execute(sql, params?)` | Write to your plugin's tables only |
 | `sdk.toast.success/error/info/warning(msg, desc?)` | Show notifications |
 | `sdk.openView(viewId, props?)` | Navigate to another view |
 | `sdk.onDataRefresh(callback)` | React when data changes (sync/import) |
@@ -71,32 +71,140 @@ Views receive `sdk` via props:
 | `sdk.currency.formatCompact(amount)` | Compact format (e.g., "$1.2M") |
 | `sdk.currency.getUserCurrency()` | Get user's currency code |
 
+## Database Schema
+
+Plugins query these views (not the underlying `sys_*` tables). Declare needed views in `permissions.read`.
+
+### `transactions` view columns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `transaction_id` | VARCHAR | Primary key (NOT `id`) |
+| `account_id` | VARCHAR | Foreign key to accounts |
+| `amount` | DECIMAL(15,2) | Amount (negative = expense, positive = income) |
+| `description` | VARCHAR | Transaction description |
+| `posted_date` | DATE | Date posted to account |
+| `transaction_date` | DATE | Date of transaction |
+| `tags` | VARCHAR[] | Array of tag strings |
+| `source` | VARCHAR | Origin: 'simplefin', 'csv_import', 'manual', etc. |
+| `account_name` | VARCHAR | Account display name (joined) |
+| `account_type` | VARCHAR | Account type (joined) |
+| `currency` | VARCHAR | ISO 4217 currency code (joined) |
+| `institution_name` | VARCHAR | Bank/provider name (joined) |
+
+### `accounts` view columns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `account_id` | VARCHAR | Primary key (NOT `id`) |
+| `name` | VARCHAR | Account display name |
+| `account_type` | VARCHAR | Type: depository, investment, credit, loan |
+| `currency` | VARCHAR | ISO 4217 currency code |
+| `balance` | DECIMAL(15,2) | Latest synced balance |
+| `institution_name` | VARCHAR | Bank/provider name |
+| `classification` | VARCHAR | 'asset' or 'liability' |
+| `is_manual` | BOOLEAN | True if manually created |
+
+### `balance_snapshots` view columns
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `snapshot_id` | VARCHAR | Primary key |
+| `account_id` | VARCHAR | Foreign key to accounts |
+| `balance` | DECIMAL(15,2) | Balance at snapshot time |
+| `snapshot_time` | TIMESTAMP | When recorded |
+| `source` | VARCHAR | 'sync', 'manual', 'backfill' |
+| `account_name` | VARCHAR | Account display name |
+
+### Common query examples
+
+```sql
+-- Recent transactions
+SELECT description, amount, posted_date, account_name
+FROM transactions ORDER BY posted_date DESC LIMIT 20
+
+-- Monthly spending by account
+SELECT account_name, SUM(-amount) as spent
+FROM transactions
+WHERE amount < 0 AND posted_date >= DATE_TRUNC('month', CURRENT_DATE)
+GROUP BY account_name ORDER BY spent DESC
+
+-- Transaction count per tag
+SELECT UNNEST(tags) as tag, COUNT(*) as cnt
+FROM transactions GROUP BY tag ORDER BY cnt DESC
+```
+
 ## Database Access
 
 - **Read declared tables**: Declare in `manifest.json` permissions.read
 - **Write to own schema**: Plugins automatically have write access to `plugin_{id}.*`
 - **Schema naming**: Each plugin gets a schema like `plugin_hello_world`
 
+## Styling
+
+Plugins inherit the app's theme automatically via CSS variables. **Never hardcode colors.**
+
+### Layout pattern
+
+```svelte
+<div class="tl-view">
+  <div class="tl-header">
+    <div class="tl-header-left">
+      <h1 class="tl-title">My Plugin</h1>
+      <p class="tl-subtitle">Description</p>
+    </div>
+  </div>
+  <div class="tl-content">
+    <!-- content here -->
+  </div>
+</div>
+```
+
+### Available CSS classes
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-view` | Root container (inherits theme) |
+| `.tl-header` / `.tl-header-left` / `.tl-header-right` | Header bar |
+| `.tl-title` / `.tl-subtitle` | Typography |
+| `.tl-content` | Scrollable content area |
+| `.tl-cards` / `.tl-card` / `.tl-card-label` / `.tl-card-value` | Stat cards |
+| `.tl-btn` + `.tl-btn-primary` / `.tl-btn-secondary` / `.tl-btn-danger` | Buttons |
+| `.tl-table` | Data table |
+| `.tl-input` / `.tl-select` | Form elements |
+| `.tl-badge` | Status badge |
+| `.tl-empty` | Empty state |
+| `.tl-loading` / `.tl-spinner` | Loading state |
+| `.tl-muted` / `.tl-positive` / `.tl-negative` | Text colors |
+
+### CSS variables (for custom styles)
+
+```css
+var(--bg-primary)       /* Main background */
+var(--bg-secondary)     /* Cards, sections */
+var(--text-primary)     /* Main text */
+var(--text-muted)       /* Labels */
+var(--border-primary)   /* Borders */
+var(--accent-primary)   /* Accent (green) */
+var(--color-positive)   /* Income */
+var(--color-negative)   /* Expense */
+var(--font-mono)        /* Monospace font */
+var(--spacing-sm/md/lg) /* 8/12/16px */
+var(--radius-md)        /* 6px */
+```
+
+### Styling rules
+
+- DO use `.tl-*` classes and CSS variables
+- DO NOT hardcode colors — the theme system handles light/dark
+- DO NOT manually toggle `.dark` class — CSS variables handle it
+- Theme tracking (`sdk.theme.current()`) is only needed for non-CSS purposes (chart libs, canvas)
+
 ## Common Patterns
 
 ### Create a table for your plugin data
 ```typescript
-// Create schema first (required before creating tables)
-await sdk.execute(`CREATE SCHEMA IF NOT EXISTS plugin_my_plugin`);
-
-await sdk.execute(`
-  CREATE TABLE IF NOT EXISTS plugin_my_plugin.data (
-    id VARCHAR PRIMARY KEY,
-    value INTEGER,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-```
-
-### Subscribe to theme changes
-```typescript
-let theme = $state(sdk.theme.current());
-sdk.theme.subscribe(t => theme = t);
+// Use migrations in index.ts instead of manual CREATE TABLE
 ```
 
 ### Show loading state
@@ -104,7 +212,6 @@ sdk.theme.subscribe(t => theme = t);
 let isLoading = $state(true);
 try {
   const data = await sdk.query("SELECT ...");
-  // use data
 } finally {
   isLoading = false;
 }
@@ -116,6 +223,14 @@ const formatted = sdk.currency.format(1234.56); // "$1,234.56"
 const compact = sdk.currency.formatCompact(1234567); // "$1.2M"
 ```
 
+### Parameterized queries
+```typescript
+const results = await sdk.query(
+  "SELECT * FROM transactions WHERE amount > ? AND account_name = ?",
+  [100, "Checking"]
+);
+```
+
 ## Icons
 
 Use Lucide icon names for sidebar items and views:
@@ -125,14 +240,15 @@ icon: "target"   // Preferred - icon name
 icon: "gift"     // Also works
 ```
 
-**Available icons:** `target`, `repeat`, `shield`, `wallet`, `credit-card`, `chart`, `tag`, `tags`, `database`, `refresh`, `link`, `zap`, `calendar`, `file-text`, `settings`, `plus`, `search`, `check`, `x`, `alert-triangle`, `info`, `help-circle`, `activity`, `gift`, `piggy-bank`
+**Available icons:** `target`, `repeat`, `shield`, `wallet`, `credit-card`, `chart-line`, `tag`, `tags`, `database`, `refresh`, `link`, `zap`, `calendar`, `file-text`, `settings`, `plus`, `search`, `check`, `x`, `alert-triangle`, `info`, `help-circle`, `activity`, `gift`, `piggy-bank`
 
 ## Don't Do
 
 - Don't write to tables not in your permissions (will throw error)
-- Don't forget dark mode support (test with both themes)
+- Don't hardcode colors — use CSS variables and `.tl-*` classes
 - Don't bundle heavy dependencies (keep plugins lightweight)
 - Don't use `sdk.execute()` for SELECT queries (use `sdk.query()`)
+- Don't use `id` as a column name — use `transaction_id`, `account_id`, etc.
 
 ## Releasing
 

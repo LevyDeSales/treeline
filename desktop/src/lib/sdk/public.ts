@@ -85,7 +85,14 @@ export function createPluginSDK(pluginId: string, permissions: PluginTablePermis
     query: async <T = Record<string, unknown>>(sql: string, params: QueryParam[] = []): Promise<T[]> => {
       // Permission validation happens in Rust via pluginContext
       const result = await executeQueryWithParams(sql, params, { readonly: true, pluginContext });
-      return result.rows as T[];
+      // Convert row arrays to objects using column names
+      return result.rows.map((row) => {
+        const obj: Record<string, unknown> = {};
+        for (let i = 0; i < result.columns.length; i++) {
+          obj[result.columns[i]] = row[i];
+        }
+        return obj as T;
+      });
     },
 
     // Database - write queries with parameters

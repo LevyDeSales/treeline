@@ -127,7 +127,15 @@ export const db = {
    * Execute a SELECT query with parameters (read-only)
    */
   select: <T = Record<string, unknown>>(sql: string, params: QueryParam[] = []): Promise<T[]> =>
-    executeQueryWithParams(sql, params, { readonly: true }).then(r => r.rows as T[]),
+    executeQueryWithParams(sql, params, { readonly: true }).then(r =>
+      r.rows.map((row) => {
+        const obj: Record<string, unknown> = {};
+        for (let i = 0; i < r.columns.length; i++) {
+          obj[r.columns[i]] = row[i];
+        }
+        return obj as T;
+      })
+    ),
 
   /**
    * Execute a write query (INSERT/UPDATE/DELETE) with parameters

@@ -214,7 +214,7 @@ Views are Svelte 5 components that receive the SDK via props:
     isLoading = true;
     try {
       items = await sdk.query(
-        "SELECT * FROM transactions ORDER BY posted_date DESC LIMIT 10"
+        "SELECT description, amount, posted_date, account_name FROM transactions ORDER BY posted_date DESC LIMIT 10"
       );
     } catch (e) {
       sdk.toast.error("Failed to load", e instanceof Error ? e.message : String(e));
@@ -224,26 +224,50 @@ Views are Svelte 5 components that receive the SDK via props:
   }
 </script>
 
-<div class="container">
-  <h1>My Plugin</h1>
+<!-- Use .tl-view as root container — inherits app theme automatically -->
+<div class="tl-view">
+  <div class="tl-header">
+    <div class="tl-header-left">
+      <h1 class="tl-title">My Plugin</h1>
+      <p class="tl-subtitle">Recent transactions</p>
+    </div>
+  </div>
 
-  {#if isLoading}
-    <p>Loading...</p>
-  {:else}
-    <ul>
-      {#each items as item}
-        <li>{item.posted_date}: {sdk.currency.format(item.amount)}</li>
-      {/each}
-    </ul>
-  {/if}
+  <div class="tl-content">
+    {#if isLoading}
+      <div class="tl-loading">
+        <div class="tl-spinner"></div>
+        <span>Loading...</span>
+      </div>
+    {:else}
+      <table class="tl-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Description</th>
+            <th>Account</th>
+            <th style="text-align: right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each items as item}
+            <tr>
+              <td class="tl-cell-date">{item.posted_date}</td>
+              <td>{item.description}</td>
+              <td class="tl-muted">{item.account_name}</td>
+              <td class={item.amount >= 0 ? "tl-cell-positive" : "tl-cell-negative"}>
+                {sdk.currency.format(item.amount)}
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
+  </div>
 </div>
-
-<style>
-  .container {
-    padding: 24px;
-  }
-</style>
 ```
+
+No custom CSS needed — the `.tl-*` classes handle layout, colors, and theme switching automatically.
 
 ### Svelte 5 Runes
 
@@ -258,34 +282,169 @@ See the [Svelte 5 documentation](https://svelte.dev/docs) for details.
 
 ### Theme Support
 
-React to theme changes to keep your UI consistent:
+Plugins inherit the app's theme automatically through CSS variables. Use the built-in `.tl-*` CSS classes and CSS variables — they adapt to light and dark mode without any JavaScript:
 
 ```svelte
-<script lang="ts">
-  let theme = $state<"light" | "dark">("light");
-
-  onMount(() => {
-    theme = sdk.theme.current();
-    sdk.theme.subscribe((newTheme) => {
-      theme = newTheme as "light" | "dark";
-    });
-  });
-</script>
-
-<div class:dark={theme === "dark"}>
-  <!-- Your content -->
+<div class="tl-view">
+  <div class="tl-content">
+    <!-- These adapt to the theme automatically -->
+    <div class="tl-card">
+      <span class="tl-card-label">Total</span>
+      <span class="tl-card-value">{sdk.currency.format(total)}</span>
+    </div>
+  </div>
 </div>
 
 <style>
-  div {
-    background: #ffffff;
-    color: #1a1a1a;
-  }
-  div.dark {
-    background: #1a1a1a;
-    color: #e5e5e5;
+  /* For custom styles, use CSS variables instead of hardcoded colors */
+  .custom-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md, 6px);
+    color: var(--text-primary);
   }
 </style>
+```
+
+If you need to know the current theme for non-CSS purposes (e.g., configuring a chart library), use `sdk.theme.current()` and `sdk.theme.subscribe()`.
+
+## Styling
+
+Treeline provides CSS classes prefixed with `tl-` that match the app's look and feel. **Always use these instead of hardcoding colors.**
+
+### Layout
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-view` | Root container (full height, themed background) |
+| `.tl-header` | Header bar with bottom border |
+| `.tl-header-left` / `.tl-header-right` | Header layout sections |
+| `.tl-title` | Section title (16px, semibold) |
+| `.tl-subtitle` | Muted subtitle (13px) |
+| `.tl-content` | Scrollable content area with padding |
+
+### Components
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-cards` | Grid container for stat cards |
+| `.tl-card` / `.tl-card-label` / `.tl-card-value` | Stat card with label and value |
+| `.tl-btn` + `.tl-btn-primary` | Primary action button |
+| `.tl-btn` + `.tl-btn-secondary` | Secondary button |
+| `.tl-btn` + `.tl-btn-danger` | Destructive action button |
+| `.tl-table` | Styled data table |
+| `.tl-input` / `.tl-select` | Form elements |
+| `.tl-badge` | Status badge |
+| `.tl-empty` | Empty state container |
+| `.tl-loading` / `.tl-spinner` | Loading state with spinner |
+
+### CSS Variables
+
+For custom styles beyond what the built-in classes provide:
+
+```css
+/* Backgrounds */
+var(--bg-primary)       /* Main background */
+var(--bg-secondary)     /* Cards, sections */
+var(--bg-tertiary)      /* Subtle backgrounds */
+
+/* Text */
+var(--text-primary)     /* Main text */
+var(--text-secondary)   /* Secondary text */
+var(--text-muted)       /* Labels, hints */
+
+/* Borders & accents */
+var(--border-primary)   /* Standard borders */
+var(--accent-primary)   /* Primary accent (green) */
+var(--accent-danger)    /* Error/danger */
+
+/* Semantic colors */
+var(--color-positive)   /* Income (green) */
+var(--color-negative)   /* Expense (red) */
+
+/* Spacing & layout */
+var(--spacing-xs)  /* 4px */
+var(--spacing-sm)  /* 8px */
+var(--spacing-md)  /* 12px */
+var(--spacing-lg)  /* 16px */
+var(--spacing-xl)  /* 24px */
+var(--radius-sm)   /* 4px */
+var(--radius-md)   /* 6px */
+
+/* Typography */
+var(--font-sans)   /* System font */
+var(--font-mono)   /* Monospace font */
+```
+
+## Database Schema
+
+Plugins query these views (not the underlying `sys_*` tables). Declare which views you need in `permissions.read`.
+
+### transactions
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `transaction_id` | VARCHAR | Primary key |
+| `account_id` | VARCHAR | Foreign key to accounts |
+| `amount` | DECIMAL(15,2) | Amount (negative = expense, positive = income) |
+| `description` | VARCHAR | Transaction description |
+| `posted_date` | DATE | Date posted to account |
+| `transaction_date` | DATE | Date of transaction |
+| `tags` | VARCHAR[] | Array of tag strings |
+| `source` | VARCHAR | Origin: 'simplefin', 'csv_import', 'manual', etc. |
+| `account_name` | VARCHAR | Account display name |
+| `account_type` | VARCHAR | Account type |
+| `currency` | VARCHAR | ISO 4217 currency code |
+| `institution_name` | VARCHAR | Bank/provider name |
+
+**Note:** Use `transaction_id` — there is no `id` column.
+
+### accounts
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `account_id` | VARCHAR | Primary key |
+| `name` | VARCHAR | Account display name |
+| `account_type` | VARCHAR | Type: depository, investment, credit, loan |
+| `currency` | VARCHAR | ISO 4217 currency code |
+| `balance` | DECIMAL(15,2) | Latest synced balance |
+| `institution_name` | VARCHAR | Bank/provider name |
+| `classification` | VARCHAR | 'asset' or 'liability' |
+| `is_manual` | BOOLEAN | True if manually created |
+
+**Note:** Use `account_id` — there is no `id` column.
+
+### balance_snapshots
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `snapshot_id` | VARCHAR | Primary key |
+| `account_id` | VARCHAR | Foreign key to accounts |
+| `balance` | DECIMAL(15,2) | Balance at snapshot time |
+| `snapshot_time` | TIMESTAMP | When this balance was recorded |
+| `source` | VARCHAR | 'sync', 'manual', or 'backfill' |
+| `account_name` | VARCHAR | Account display name |
+
+### Example Queries
+
+```sql
+-- Recent transactions
+SELECT description, amount, posted_date, account_name
+FROM transactions ORDER BY posted_date DESC LIMIT 20
+
+-- Monthly spending by account
+SELECT account_name, SUM(-amount) as spent
+FROM transactions
+WHERE amount < 0 AND posted_date >= DATE_TRUNC('month', CURRENT_DATE)
+GROUP BY account_name ORDER BY spent DESC
+
+-- Transaction count per tag
+SELECT UNNEST(tags) as tag, COUNT(*) as cnt
+FROM transactions GROUP BY tag ORDER BY cnt DESC
+
+-- Account summary
+SELECT name, account_type, classification, institution_name
+FROM accounts ORDER BY name
 ```
 
 ## Database Migrations
@@ -330,26 +489,6 @@ const migrations: PluginMigration[] = [
 - **Migrations are one-way** - there's no down migration
 - **Migrations run once** - Treeline tracks which versions have run in `plugin_<id>.schema_migrations`
 - **Use your schema name** - All tables should be in `plugin_<id>.*`
-
-### Available Core Tables
-
-Plugins can read these tables (when declared in `permissions.read`):
-
-| Table | Description |
-|-------|-------------|
-| `transactions` | Enriched view with transaction details, account info, and tags |
-| `accounts` | Account information with current balances |
-| `balance_snapshots` | Historical balance data points |
-
-These are views that provide convenient access to the underlying data. Always use these view names (not the underlying `sys_*` tables) in both your manifest permissions and queries.
-
-Query the schema for column details:
-
-```sql
-SELECT column_name, data_type
-FROM information_schema.columns
-WHERE table_name = 'transactions'
-```
 
 ## Build and Test
 
