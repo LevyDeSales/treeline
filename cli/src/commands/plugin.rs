@@ -71,9 +71,14 @@ pub fn run(command: PluginCommands) -> Result<()> {
             println!("\n{}:", "Next steps".cyan());
             println!("  1. cd {}", plugin_dir);
             println!("  2. npm install");
-            println!("  3. Edit src/index.ts and src/*View.svelte");
-            println!("  4. npm run build");
-            println!("  5. tl plugin install {}\n", plugin_dir);
+            println!("  3. npm run build");
+            println!("  4. tl plugin install .");
+            println!(
+                "\n{}:",
+                "Then develop with hot-reload".cyan()
+            );
+            println!("  5. Enable hot-reload in Treeline: Settings > Plugin Hot-Reload > On");
+            println!("  6. npm run dev\n");
         }
 
         PluginCommands::Install {

@@ -2048,6 +2048,10 @@ fn watch_plugins_dir(
     let debouncer = new_debouncer(Duration::from_millis(500), move |res: Result<Vec<notify_debouncer_mini::DebouncedEvent>, notify::Error>| {
         match res {
             Ok(events) => {
+                // Collect unique plugin IDs from all events in this debounce batch.
+                // Multiple files (index.js, manifest.json) may change together —
+                // we only want to emit one reload event per plugin.
+                let mut changed_plugins = std::collections::HashSet::new();
                 for event in events {
                     if event.kind != DebouncedEventKind::Any {
                         continue;
@@ -2065,9 +2069,12 @@ fn watch_plugins_dir(
                     // Extract plugin ID from path: plugins_dir/<plugin-id>/filename
                     if let Ok(relative) = path.strip_prefix(&plugins_dir_clone) {
                         if let Some(plugin_id) = relative.iter().next().and_then(|c| c.to_str()) {
-                            let _ = app.emit("plugin-file-changed", plugin_id.to_string());
+                            changed_plugins.insert(plugin_id.to_string());
                         }
                     }
+                }
+                for plugin_id in changed_plugins {
+                    let _ = app.emit("plugin-file-changed", plugin_id);
                 }
             }
             Err(e) => {
