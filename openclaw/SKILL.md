@@ -1,10 +1,9 @@
 ---
 name: treeline
 description: Chat with your finances from Treeline Money. Query balances, spending, budgets, and transactions.
-version: 0.0.6
 user-invocable: true
 homepage: https://treeline.money
-metadata: {"clawdbot":{"emoji":"🌲","requires":{"bins":["tl"]},"install":[{"id":"tl-mac","kind":"download","url":"https://github.com/treeline-money/treeline/releases/latest/download/tl-macos-arm64","bins":["tl"],"label":"Install Treeline CLI (macOS)","os":["darwin"]},{"id":"tl-linux","kind":"download","url":"https://github.com/treeline-money/treeline/releases/latest/download/tl-linux-x64","bins":["tl"],"label":"Install Treeline CLI (Linux)","os":["linux"]},{"id":"tl-win","kind":"download","url":"https://github.com/treeline-money/treeline/releases/latest/download/tl-windows-x64.exe","bins":["tl.exe"],"label":"Install Treeline CLI (Windows)","os":["win32"]}]}}
+metadata: {"openclaw":{"emoji":"🌲","requires":{"bins":["tl"]},"install":[{"id":"tl-mac","kind":"download","url":"https://github.com/treeline-money/treeline/releases/latest/download/tl-macos-arm64","bins":["tl"],"label":"Install Treeline CLI (macOS)","os":["darwin"]},{"id":"tl-linux","kind":"download","url":"https://github.com/treeline-money/treeline/releases/latest/download/tl-linux-x64","bins":["tl"],"label":"Install Treeline CLI (Linux)","os":["linux"]},{"id":"tl-win","kind":"download","url":"https://github.com/treeline-money/treeline/releases/latest/download/tl-windows-x64.exe","bins":["tl.exe"],"label":"Install Treeline CLI (Windows)","os":["win32"]}]}}
 ---
 
 # Treeline Money
@@ -124,27 +123,44 @@ Liabilities: $55k
 
 ## CLI Commands
 
-The `tl` CLI can do more than just queries:
+### Read commands (run freely)
+
+These commands are read-only and safe to run autonomously:
 
 ```bash
 tl status              # Quick account summary with balances
 tl status --json       # Same, but JSON output
 
-tl query "SQL" --json  # Run any SQL query (read-only)
+tl query "SQL" --json  # Run any SQL query (database opened in read-only mode)
 tl sql "SQL" --json    # Same as tl query (alias)
 
+tl backup list         # List available backups
+tl doctor              # Check database health
+tl demo status         # Check if demo mode is on/off
+```
+
+> **Note:** `tl query` and `tl sql` open the database in read-only mode by default. They cannot modify data unless `--allow-writes` is passed (see write commands below).
+
+**Use `tl status` for quick balance checks** — it's faster than a SQL query.
+
+### Write commands (ask the user first)
+
+These commands modify local data. **Always ask the user for confirmation before running them**, unless the user has explicitly allowed them in `PERMISSIONS.md` (see [Agent Permissions](#agent-permissions)).
+
+```bash
+tl query "SQL" --allow-writes --json  # Run a SQL query with write access
+tl sql "SQL" --allow-writes --json    # Same (alias)
+
 tl sync                # Sync accounts/transactions from bank integrations
-tl sync --dry-run      # Preview what would sync
+tl sync --dry-run      # Preview what would sync (read-only, safe to run)
 
 tl import FILE -a ACCOUNT          # Import transactions from CSV
-tl import FILE -a ACCOUNT --dry-run  # Preview import without applying
+tl import FILE -a ACCOUNT --dry-run  # Preview import without applying (read-only, safe to run)
 tl import FILE -a ACCOUNT --json   # JSON output for scripting
 
 tl backup create       # Create a backup
-tl backup list         # List available backups
 tl backup restore NAME # Restore a backup
 
-tl doctor              # Check database health
 tl compact             # Compact database (reclaim space, optimize)
 
 tl tag "groceries" --ids ID1,ID2  # Apply tags to transactions
@@ -152,9 +168,7 @@ tl tag "groceries" --ids ID1,ID2  # Apply tags to transactions
 tl demo on|off         # Toggle demo mode (sample data)
 ```
 
-> **Note:** `tl query` and `tl sql` are identical — use whichever you prefer. The database is opened read-only.
-
-**Use `tl status` for quick balance checks** — it's faster than a SQL query.
+> **Tip:** `--dry-run` variants are read-only and safe to run without confirmation. Use them to preview before asking the user to confirm the actual operation.
 
 **Use `tl compact` if the user mentions slow queries** — it optimizes the database.
 
@@ -207,6 +221,30 @@ tl import transactions.csv -a "550e8400-e29b-41d4-a716-446655440000" --json
 ```
 
 Duplicate transactions are automatically detected and skipped on re-import via fingerprinting.
+
+---
+
+## Agent Permissions
+
+**Before running any write command, check for `PERMISSIONS.md` in this skill directory.**
+
+If it exists, read it to see which write commands the user has pre-approved. Pre-approved commands can be run without asking for confirmation. All other write commands still require explicit user confirmation before execution.
+
+If `PERMISSIONS.md` does not exist, **always ask before running any write command.**
+
+**Template for PERMISSIONS.md:**
+
+```markdown
+# Treeline Agent Permissions
+
+Commands listed here are pre-approved — the agent can run them without
+asking for confirmation each time. Remove a line to require confirmation.
+
+## Allowed write commands
+- tl sync
+- tl backup create
+- tl demo on|off
+```
 
 ---
 
