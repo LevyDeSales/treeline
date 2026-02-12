@@ -1,5 +1,6 @@
 import { mount } from 'svelte'
 import './app.css'
+import './lib/sdk/styles.css'
 import App from './App.svelte'
 
 // Disable macOS autocorrect/autocapitalize on all text inputs
