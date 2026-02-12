@@ -164,6 +164,8 @@ export const plugin: Plugin = {
 
 ## Database Schema Reference
 
+**CRITICAL: These are the ONLY tables available to plugins. There are no `budgets`, `categories`, `tags`, `users`, or other tables. Do not invent or assume tables that are not listed here.** If the plugin needs additional data, create tables in the plugin's own schema via migrations.
+
 Plugins query these views (not the underlying `sys_*` tables). Declare needed views in `permissions.read`.
 
 ### `transactions` view
@@ -255,9 +257,17 @@ FROM accounts ORDER BY name
 
 ## Styling
 
-Plugins inherit the app's theme automatically via CSS variables. **Never hardcode colors.** Use the app's `.tl-` prefixed CSS classes and CSS variables.
+Plugins inherit the app's theme automatically via CSS variables. **Never hardcode colors.** Use `.tl-` prefixed CSS classes and CSS variables for everything.
 
-### Layout Pattern
+### Design Philosophy
+
+- **Horizontal lines only** — tables use horizontal row separators, never vertical column borders
+- **Minimal chrome** — no heavy borders, shadows, or decorative elements. Content-focused.
+- **Density** — compact 13px base font, tight spacing. Finance UIs show lots of data.
+- **Monospace for numbers** — all monetary amounts and numeric data use monospace font for alignment
+- **No inline styles** — always use `<style>` blocks or `.tl-*` classes. Inline `style=` attributes may not render reliably in the plugin webview context.
+
+### Page Layout
 
 Every plugin view should use this structure:
 
@@ -278,78 +288,242 @@ Every plugin view should use this structure:
 </div>
 ```
 
-### Available CSS Classes
+### Complete Table Example
+
+```svelte
+<div class="tl-table-container">
+  <table class="tl-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Account</th>
+        <th style:text-align="right">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {#each transactions as t}
+        <tr>
+          <td class="tl-cell-date">{t.posted_date}</td>
+          <td>{t.description}</td>
+          <td class="tl-muted">{t.account_name}</td>
+          <td class={t.amount >= 0 ? "tl-cell-positive" : "tl-cell-negative"}>
+            {sdk.currency.format(t.amount)}
+          </td>
+        </tr>
+      {/each}
+    </tbody>
+  </table>
+</div>
+```
+
+### All Available CSS Classes
+
+**Layout:**
 
 | Class | Purpose |
 |-------|---------|
-| `.tl-view` | Root container (full height, inherits theme) |
-| `.tl-header` | Header bar with border |
-| `.tl-header-left` / `.tl-header-right` | Header sections |
+| `.tl-view` | Root container (full height, themed background and text) |
+| `.tl-header` | Header bar with bottom border, secondary background |
+| `.tl-header-left` / `.tl-header-right` | Flex sections within header |
 | `.tl-title` | Section title (16px, semibold) |
-| `.tl-subtitle` | Muted subtitle (13px) |
-| `.tl-content` | Scrollable content area |
-| `.tl-cards` | Grid of stat cards |
-| `.tl-card` | Individual card |
-| `.tl-card-label` | Card label (uppercase, small) |
-| `.tl-card-value` | Card value (24px, bold) |
-| `.tl-btn` | Base button class |
-| `.tl-btn-primary` | Primary action button (accent color) |
-| `.tl-btn-secondary` | Secondary button (subtle) |
-| `.tl-btn-danger` | Destructive action button |
-| `.tl-btn-text` | Minimal text button |
-| `.tl-table` | Data table |
-| `.tl-input` | Text input |
-| `.tl-select` | Dropdown select |
-| `.tl-badge` | Status badge |
-| `.tl-empty` | Empty state container |
-| `.tl-loading` / `.tl-spinner` | Loading state |
-| `.tl-mono` | Monospace text |
+| `.tl-subtitle` | Muted subtitle text (13px) |
+| `.tl-content` | Scrollable content area with padding |
+
+**Cards:**
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-cards` | Grid container (auto-fit, min 150px columns) |
+| `.tl-card` | Individual card (secondary bg, border, rounded) |
+| `.tl-card-label` | Uppercase label (11px, muted) |
+| `.tl-card-value` | Large value (24px, bold) |
+| `.tl-card-value-sm` | Smaller value variant (18px) |
+
+**Tables:**
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-table-container` | Scrollable wrapper for wide tables |
+| `.tl-table` | Table element (full width, 13px, collapsed borders) |
+| `.tl-sortable` | On `<th>` — clickable sort header |
+| `.tl-sorted` | On `<th>` — accent-colored active sort |
+| `.tl-cell-date` | Muted, 12px date text |
+| `.tl-cell-mono` | Monospace text |
+| `.tl-cell-number` | Right-aligned monospace (for numeric columns) |
+| `.tl-cell-positive` | Green monospace (income/positive amounts) |
+| `.tl-cell-negative` | Red monospace (expense/negative amounts) |
+| `.tl-cell-actions` | Right-aligned flex container for row action buttons |
+| `.tl-selected` | On `<tr>` — active/highlighted row |
+| `.tl-muted` (on `<tr>`) | Dimmed row (opacity 0.5) |
+
+**Buttons:**
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-btn` | Base button (required, combine with variant) |
+| `.tl-btn-primary` | Accent-colored action button |
+| `.tl-btn-secondary` | Subtle button with border |
+| `.tl-btn-danger` | Red destructive button |
+| `.tl-btn-text` | Minimal text-only button |
+| `.tl-btn-icon` | Square 28px icon-only button |
+
+**Forms:**
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-input` | Text input (themed, focus ring) |
+| `.tl-select` | Dropdown select (themed, custom arrow) |
+| `.tl-checkbox` | Checkbox + label wrapper |
+| `.tl-label` | Form field label (12px, secondary) |
+| `.tl-form-group` | Vertical group with spacing |
+
+**Badges:**
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-badge` | Base badge (accent color) |
+| `.tl-badge-success` / `-warning` / `-danger` / `-muted` | Color variants |
+
+**States:**
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-empty` | Centered empty state container |
+| `.tl-empty-icon` | Large faded icon (48px) |
+| `.tl-empty-title` | Empty state heading |
+| `.tl-empty-message` | Empty state description (max 400px) |
+| `.tl-loading` | Centered loading container |
+| `.tl-spinner` | Animated spinning circle |
+
+**Utilities:**
+
+| Class | Purpose |
+|-------|---------|
+| `.tl-mono` | Monospace font |
 | `.tl-muted` | Muted text color |
-| `.tl-positive` / `.tl-negative` | Income/expense colors |
+| `.tl-positive` / `.tl-negative` | Semantic income/expense colors |
+| `.tl-text-sm` | 12px text |
+| `.tl-text-xs` | 11px text |
+| `.tl-font-semibold` | Font weight 600 |
+| `.tl-truncate` | Ellipsis overflow |
+| `.tl-gap-sm` / `.tl-gap-md` | Flex/grid gap (8px / 12px) |
+| `.tl-mt-md` / `.tl-mb-md` | Margin top/bottom (12px) |
 
 ### CSS Variables (for custom styles)
 
-```css
-/* Backgrounds */
-var(--bg-primary)       /* Main background */
-var(--bg-secondary)     /* Cards, sections */
-var(--bg-tertiary)      /* Subtle backgrounds */
+When `.tl-*` classes don't cover your use case, use CSS variables in a `<style>` block:
 
-/* Text */
-var(--text-primary)     /* Main text */
-var(--text-secondary)   /* Secondary text */
-var(--text-muted)       /* Labels, hints */
+```svelte
+<style>
+  .my-section-header {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: var(--spacing-lg) 0 var(--spacing-sm);
+  }
 
-/* Borders */
-var(--border-primary)   /* Standard borders */
-
-/* Accents */
-var(--accent-primary)   /* Primary accent (green) */
-var(--accent-success)   /* Success state */
-var(--accent-warning)   /* Warning state */
-var(--accent-danger)    /* Error/danger state */
-
-/* Semantic */
-var(--color-positive)   /* Income/positive */
-var(--color-negative)   /* Expense/negative */
-
-/* Other */
-var(--code-bg)          /* Code block background */
-var(--font-sans)        /* System font */
-var(--font-mono)        /* Monospace font */
-var(--spacing-xs/sm/md/lg/xl)  /* 4/8/12/16/24px */
-var(--radius-sm/md/lg)  /* 4/6/8px */
+  .my-highlight-row {
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+  }
+</style>
 ```
+
+**Available variables:**
+
+```
+--bg-primary / --bg-secondary / --bg-tertiary   Backgrounds
+--text-primary / --text-secondary / --text-muted Text colors
+--border-primary / --border-secondary            Borders
+--accent-primary / --accent-success / --accent-warning / --accent-danger
+--color-positive / --color-negative              Semantic colors
+--code-bg                                        Code background
+--font-sans / --font-mono                        Font families
+--spacing-xs (4) / -sm (8) / -md (12) / -lg (16) / -xl (24)
+--radius-sm (4) / -md (6) / -lg (8)             Border radii
+--shadow-sm / --shadow-md / --shadow-lg          Box shadows
+```
+
+### Chart.js Integration
+
+Charts need special handling for theme and sizing:
+
+```svelte
+<script lang="ts">
+  import { Chart } from "chart.js/auto";
+  import { onMount, onDestroy } from "svelte";
+
+  let canvas: HTMLCanvasElement;
+  let chart: Chart;
+
+  function getChartColors() {
+    const style = getComputedStyle(document.documentElement);
+    return {
+      text: style.getPropertyValue("--text-primary").trim(),
+      muted: style.getPropertyValue("--text-muted").trim(),
+      border: style.getPropertyValue("--border-primary").trim(),
+      accent: style.getPropertyValue("--accent-primary").trim(),
+      positive: style.getPropertyValue("--color-positive").trim(),
+      negative: style.getPropertyValue("--color-negative").trim(),
+    };
+  }
+
+  function createChart() {
+    const colors = getChartColors();
+    chart = new Chart(canvas, {
+      type: "bar",
+      data: { /* ... */ },
+      options: {
+        animation: false,           // Prevents jank during hot-reload
+        responsive: true,
+        maintainAspectRatio: false,  // Required — use container height
+        scales: {
+          x: { ticks: { color: colors.muted }, grid: { color: colors.border } },
+          y: { ticks: { color: colors.muted }, grid: { color: colors.border } },
+        },
+      },
+    });
+  }
+
+  onMount(() => createChart());
+  onDestroy(() => chart?.destroy());
+
+  // Re-create chart on theme change
+  sdk.theme.subscribe(() => {
+    chart?.destroy();
+    createChart();
+  });
+</script>
+
+<!-- IMPORTANT: Fixed-height container prevents infinite expansion -->
+<div style:height="300px">
+  <canvas bind:this={canvas}></canvas>
+</div>
+```
+
+**Chart.js gotchas:**
+- **Must use a fixed-height container** — without it, `responsive: true` causes infinite growth
+- **Set `animation: false`** — prevents jank during hot-reload rebuilds
+- **Set `maintainAspectRatio: false`** — lets the container control dimensions
+- **Read CSS variables with `getComputedStyle`** for theme-aware colors
+- **Re-create on theme change** — Chart.js doesn't support live color updates; destroy and re-create
 
 ### Styling Rules
 
-- **DO** use `.tl-*` classes for standard UI elements
-- **DO** use CSS variables for any custom styles
+- **DO** use `.tl-*` classes for all standard UI elements
+- **DO** use CSS variables in `<style>` blocks for custom styles
+- **DO** use `.tl-cell-positive` / `.tl-cell-negative` for money columns in tables
 - **DO NOT** hardcode colors (no `#ffffff`, `#1a1a1a`, etc.)
-- **DO NOT** manually track theme with `sdk.theme.subscribe()` for styling — CSS variables handle it automatically
-- **DO NOT** use `.dark` class toggles — the app's theme system sets variables on the root
+- **DO NOT** use inline `style="..."` attributes — they may not render; use `<style>` blocks instead
+- **DO NOT** add vertical borders to tables — the design uses horizontal separators only
+- **DO NOT** manually track theme with `sdk.theme.subscribe()` for CSS styling — CSS variables handle it
+- **DO NOT** use `.dark` class toggles — the theme system sets variables on the root
 
-Theme tracking via `sdk.theme.current()` is still useful for non-CSS purposes (e.g., chart library themes, canvas rendering).
+`sdk.theme.current()` is still needed for non-CSS purposes (Chart.js colors, canvas rendering, etc.).
 
 ## Migrations (Optional)
 
@@ -429,3 +603,4 @@ const results = await sdk.query(
 - Don't use `sdk.execute()` for SELECT queries (use `sdk.query()`)
 - Don't use shared Svelte — each plugin bundles its own runtime
 - Don't use `id` as a column name — transactions use `transaction_id`, accounts use `account_id`
+- Don't assume tables exist beyond `transactions`, `accounts`, and `balance_snapshots` — there are no `budgets`, `categories`, `tags`, or `users` tables
