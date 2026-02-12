@@ -113,20 +113,34 @@ export type QueryParam = string | number | boolean | null | string[] | number[];
 export interface PluginSDK {
   /**
    * Execute a read-only SQL query against the database.
-   * Use parameterized queries (?) for user-provided values to prevent SQL injection.
+   * Returns raw row arrays — use `sdk.sql()` if you prefer objects keyed by column name.
    *
    * @param sql - SQL SELECT query with ? placeholders
    * @param params - Optional array of values to bind to ? placeholders
-   * @returns Array of row objects
+   * @returns Array of raw row arrays
    *
    * @example
-   * // Parameterized query (SAFE)
-   * const results = await sdk.query(
-   *   'SELECT * FROM transactions WHERE amount > ?',
+   * const rows = await sdk.query('SELECT COUNT(*) FROM transactions');
+   * console.log(rows[0][0]); // access by index
+   */
+  query: <T = unknown[]>(sql: string, params?: QueryParam[]) => Promise<T[]>;
+
+  /**
+   * Execute a read-only SQL query and return objects keyed by column name.
+   * This is the recommended method for most queries.
+   *
+   * @param sql - SQL SELECT query with ? placeholders
+   * @param params - Optional array of values to bind to ? placeholders
+   * @returns Array of row objects with column names as keys
+   *
+   * @example
+   * const results = await sdk.sql<{ amount: number; description: string }>(
+   *   'SELECT amount, description FROM transactions WHERE amount > ?',
    *   [100]
    * );
+   * console.log(results[0].amount); // access by column name
    */
-  query: <T = Record<string, unknown>>(sql: string, params?: QueryParam[]) => Promise<T[]>;
+  sql: <T = Record<string, unknown>>(sql: string, params?: QueryParam[]) => Promise<T[]>;
 
   /**
    * Execute a write SQL query (INSERT/UPDATE/DELETE/CREATE/DROP).

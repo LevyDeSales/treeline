@@ -220,7 +220,8 @@ Plugins automatically have full read/write access to tables in their own schema 
 
 ### Plugin SDK (`lib/sdk/public.ts`)
 External plugins receive an SDK via props when their views are mounted:
-- `sdk.query(sql)` - Read any table
+- `sdk.sql(sql)` - Read data (returns objects by column name)
+- `sdk.query(sql)` - Read data (returns raw row arrays)
 - `sdk.execute(sql)` - Write to allowed tables only
 - `sdk.toast.*` - Show notifications
 - `sdk.openView()` - Navigate to views

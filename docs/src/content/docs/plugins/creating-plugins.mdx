@@ -213,7 +213,7 @@ Views are Svelte 5 components that receive the SDK via props:
   async function loadData() {
     isLoading = true;
     try {
-      items = await sdk.query(
+      items = await sdk.sql(
         "SELECT description, amount, posted_date, account_name FROM transactions ORDER BY posted_date DESC LIMIT 10"
       );
     } catch (e) {
@@ -555,7 +555,7 @@ Always handle errors gracefully:
 
 ```typescript
 try {
-  const data = await sdk.query("SELECT * FROM transactions");
+  const data = await sdk.sql("SELECT * FROM transactions");
 } catch (e) {
   sdk.toast.error(
     "Query failed",

@@ -54,7 +54,8 @@ Views receive `sdk` via props:
 
 | Method | What it does |
 |--------|--------------|
-| `sdk.query(sql, params?)` | Read data (returns array of objects) |
+| `sdk.sql(sql, params?)` | Read data (returns array of objects) |
+| `sdk.query(sql, params?)` | Read data (returns raw row arrays) |
 | `sdk.execute(sql, params?)` | Write to your plugin's tables only |
 | `sdk.toast.success/error/info/warning(msg, desc?)` | Show notifications |
 | `sdk.openView(viewId, props?)` | Navigate to another view |
@@ -211,7 +212,7 @@ var(--radius-md)        /* 6px */
 ```typescript
 let isLoading = $state(true);
 try {
-  const data = await sdk.query("SELECT ...");
+  const data = await sdk.sql("SELECT ...");
 } finally {
   isLoading = false;
 }
@@ -225,7 +226,7 @@ const compact = sdk.currency.formatCompact(1234567); // "$1.2M"
 
 ### Parameterized queries
 ```typescript
-const results = await sdk.query(
+const results = await sdk.sql(
   "SELECT * FROM transactions WHERE amount > ? AND account_name = ?",
   [100, "Checking"]
 );
@@ -247,7 +248,7 @@ icon: "gift"     // Also works
 - Don't write to tables not in your permissions (will throw error)
 - Don't hardcode colors — use CSS variables and `.tl-*` classes
 - Don't bundle heavy dependencies (keep plugins lightweight)
-- Don't use `sdk.execute()` for SELECT queries (use `sdk.query()`)
+- Don't use `sdk.execute()` for SELECT queries (use `sdk.sql()` or `sdk.query()`)
 - Don't use `id` as a column name — use `transaction_id`, `account_id`, etc.
 
 ## Releasing

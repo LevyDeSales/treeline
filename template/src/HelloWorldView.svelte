@@ -36,18 +36,18 @@
   async function loadData() {
     isLoading = true;
     try {
-      // Use sdk.query() to fetch data
-      const accounts = await sdk.query<{ count: number }>(
+      // Use sdk.sql() to fetch data (returns objects keyed by column name)
+      const accounts = await sdk.sql<{ count: number }>(
         "SELECT COUNT(*) as count FROM accounts"
       );
       accountCount = accounts[0]?.count ?? 0;
 
-      const transactions = await sdk.query<{ count: number }>(
+      const transactions = await sdk.sql<{ count: number }>(
         "SELECT COUNT(*) as count FROM transactions"
       );
       transactionCount = transactions[0]?.count ?? 0;
 
-      const spending = await sdk.query<{ total: number }>(
+      const spending = await sdk.sql<{ total: number }>(
         "SELECT COALESCE(SUM(-amount), 0) as total FROM transactions WHERE amount < 0 AND posted_date >= DATE_TRUNC('month', CURRENT_DATE)"
       );
       monthlySpending = spending[0]?.total ?? 0;
@@ -113,7 +113,7 @@
     <div class="info-section">
       <h2 class="tl-title">SDK Features</h2>
       <ul>
-        <li><code>sdk.query(sql)</code> - Read data from the database</li>
+        <li><code>sdk.sql(sql)</code> - Read data (returns objects by column name)</li>
         <li><code>sdk.execute(sql)</code> - Write to your plugin's tables</li>
         <li><code>sdk.toast.success/error/info()</code> - Show notifications</li>
         <li><code>sdk.openView(viewId, props)</code> - Navigate to views</li>

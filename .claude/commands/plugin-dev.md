@@ -138,7 +138,7 @@ export const plugin: Plugin = {
   sdk.onDataRefresh(() => loadData());
 
   async function loadData() {
-    data = await sdk.query("SELECT * FROM transactions ORDER BY posted_date DESC LIMIT 10");
+    data = await sdk.sql("SELECT * FROM transactions ORDER BY posted_date DESC LIMIT 10");
   }
 </script>
 ```
@@ -147,7 +147,8 @@ export const plugin: Plugin = {
 
 | Method | What it does |
 |--------|--------------|
-| `sdk.query(sql, params?)` | Read data (returns array of objects) |
+| `sdk.sql(sql, params?)` | Read data (returns array of objects) |
+| `sdk.query(sql, params?)` | Read data (returns raw row arrays) |
 | `sdk.execute(sql, params?)` | Write to your plugin's tables only |
 | `sdk.toast.success/error/info/warning(msg, desc?)` | Show notifications |
 | `sdk.openView(viewId, props?)` | Navigate to another view |
@@ -575,7 +576,7 @@ Use Lucide icon names: `target`, `repeat`, `shield`, `wallet`, `credit-card`, `c
 ```typescript
 let isLoading = $state(true);
 try {
-  const data = await sdk.query("SELECT ...");
+  const data = await sdk.sql("SELECT ...");
 } finally {
   isLoading = false;
 }
@@ -588,7 +589,7 @@ const formatted = sdk.currency.format(1234.56); // "$1,234.56"
 
 ### Parameterized queries
 ```typescript
-const results = await sdk.query(
+const results = await sdk.sql(
   "SELECT * FROM transactions WHERE amount > ? AND account_name = ?",
   [100, "Checking"]
 );
@@ -600,7 +601,7 @@ const results = await sdk.query(
 - Don't hardcode colors — use CSS variables and `.tl-*` classes
 - Don't manually toggle `.dark` class — CSS variables handle theming
 - Don't bundle heavy dependencies (keep plugins lightweight)
-- Don't use `sdk.execute()` for SELECT queries (use `sdk.query()`)
+- Don't use `sdk.execute()` for SELECT queries (use `sdk.sql()` or `sdk.query()`)
 - Don't use shared Svelte — each plugin bundles its own runtime
 - Don't use `id` as a column name — transactions use `transaction_id`, accounts use `account_id`
 - Don't assume tables exist beyond `transactions`, `accounts`, and `balance_snapshots` — there are no `budgets`, `categories`, `tags`, or `users` tables

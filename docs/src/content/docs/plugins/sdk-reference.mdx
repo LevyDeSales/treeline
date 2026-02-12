@@ -16,12 +16,12 @@ let { sdk }: Props = $props();
 
 ## Database
 
-### sdk.query()
+### sdk.sql()
 
-Execute a read-only SQL query against the database.
+Execute a read-only SQL query and return objects keyed by column name. **This is the recommended method for most queries.**
 
 ```typescript
-query<T = Record<string, unknown>>(
+sql<T = Record<string, unknown>>(
   sql: string,
   params?: QueryParam[]
 ): Promise<T[]>
@@ -31,36 +31,61 @@ query<T = Record<string, unknown>>(
 - `sql` - SQL SELECT query with `?` placeholders for parameters
 - `params` - Optional array of values to bind to placeholders
 
-**Returns:** Array of row objects
+**Returns:** Array of row objects with column names as keys
 
 **Example:**
 
 ```typescript
 // Simple query
-const accounts = await sdk.query<Account>("SELECT * FROM accounts");
+const accounts = await sdk.sql<Account>("SELECT * FROM accounts");
 
 // Parameterized query (recommended for user input)
-const transactions = await sdk.query<Transaction>(
+const transactions = await sdk.sql<Transaction>(
   "SELECT * FROM transactions WHERE amount > ? AND posted_date > ?",
   [100, "2024-01-01"]
 );
 
 // With type parameter
 interface Transaction {
-  id: string;
+  transaction_id: string;
   amount: number;
   description: string;
   posted_date: string;
 }
-const results = await sdk.query<Transaction>(
+const results = await sdk.sql<Transaction>(
   "SELECT * FROM transactions LIMIT 10"
 );
+console.log(results[0].amount); // access by column name
 ```
 
 **Query Parameter Types:**
 
 ```typescript
 type QueryParam = string | number | boolean | null | string[] | number[];
+```
+
+### sdk.query()
+
+Execute a read-only SQL query and return raw row arrays. Use `sdk.sql()` instead if you want objects keyed by column name.
+
+```typescript
+query<T = unknown[]>(
+  sql: string,
+  params?: QueryParam[]
+): Promise<T[]>
+```
+
+**Parameters:**
+- `sql` - SQL SELECT query with `?` placeholders for parameters
+- `params` - Optional array of values to bind to placeholders
+
+**Returns:** Array of raw row arrays (values in column order)
+
+**Example:**
+
+```typescript
+const rows = await sdk.query("SELECT COUNT(*) FROM transactions");
+console.log(rows[0][0]); // access by index
 ```
 
 ### sdk.execute()
@@ -276,7 +301,7 @@ sdk.updateBadge(0);
 sdk.updateBadge(undefined);
 
 // Update based on data
-const pending = await sdk.query<{ count: number }>(
+const pending = await sdk.sql<{ count: number }>(
   `SELECT COUNT(*) as count FROM ${sdk.getSchemaName()}.tasks WHERE done = false`
 );
 sdk.updateBadge(pending[0]?.count || 0);
@@ -622,7 +647,7 @@ Here's a complete example using multiple SDK features:
   async function loadData() {
     isLoading = true;
     try {
-      items = await sdk.query<Item>(
+      items = await sdk.sql<Item>(
         `SELECT * FROM ${schema}.items ORDER BY name`
       );
       sdk.updateBadge(items.length);

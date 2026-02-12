@@ -81,11 +81,17 @@ export function createPluginSDK(pluginId: string, permissions: PluginTablePermis
   };
 
   return {
-    // Database - read-only queries with parameters
-    query: async <T = Record<string, unknown>>(sql: string, params: QueryParam[] = []): Promise<T[]> => {
+    // Database - read-only queries with parameters (returns raw row arrays)
+    query: async <T = unknown[]>(sql: string, params: QueryParam[] = []): Promise<T[]> => {
       // Permission validation happens in Rust via pluginContext
       const result = await executeQueryWithParams(sql, params, { readonly: true, pluginContext });
-      // Convert row arrays to objects using column names
+      return result.rows as T[];
+    },
+
+    // Database - read-only queries returning objects keyed by column name
+    sql: async <T = Record<string, unknown>>(sql: string, params: QueryParam[] = []): Promise<T[]> => {
+      // Permission validation happens in Rust via pluginContext
+      const result = await executeQueryWithParams(sql, params, { readonly: true, pluginContext });
       return result.rows.map((row) => {
         const obj: Record<string, unknown> = {};
         for (let i = 0; i < result.columns.length; i++) {

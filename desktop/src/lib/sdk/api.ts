@@ -124,9 +124,15 @@ export async function executeQueryWithParams(
  */
 export const db = {
   /**
-   * Execute a SELECT query with parameters (read-only)
+   * Execute a SELECT query with parameters (read-only, returns raw row arrays)
    */
-  select: <T = Record<string, unknown>>(sql: string, params: QueryParam[] = []): Promise<T[]> =>
+  select: <T = unknown[]>(sql: string, params: QueryParam[] = []): Promise<T[]> =>
+    executeQueryWithParams(sql, params, { readonly: true }).then(r => r.rows as T[]),
+
+  /**
+   * Execute a SELECT query with parameters (read-only, returns objects keyed by column name)
+   */
+  selectObjects: <T = Record<string, unknown>>(sql: string, params: QueryParam[] = []): Promise<T[]> =>
     executeQueryWithParams(sql, params, { readonly: true }).then(r =>
       r.rows.map((row) => {
         const obj: Record<string, unknown> = {};
