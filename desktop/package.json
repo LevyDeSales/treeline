@@ -39,7 +39,7 @@
     "@tauri-apps/plugin-opener": "^2.5.2",
     "@tauri-apps/plugin-process": "^2",
     "@tauri-apps/plugin-updater": "^2",
-    "@treeline-money/plugin-sdk": "^26.1.3101",
+    "@treeline-money/plugin-sdk": "file:../sdk",
     "codemirror": "^6.0.2",
     "marked": "^17.0.1"
   }
