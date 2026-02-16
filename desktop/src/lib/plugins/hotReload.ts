@@ -79,13 +79,7 @@ async function reloadPlugin(pluginId: string): Promise<void> {
     return;
   }
 
-  // 1. Remember open tabs for this plugin so we can restore them after reload
-  const pluginViewIds = registry.getViewIdsForPlugin(pluginId);
-  const openTabViewIds = registry.tabs
-    .filter((t) => pluginViewIds.has(t.viewId))
-    .map((t) => ({ viewId: t.viewId, wasActive: t.id === registry.activeTabId }));
-
-  // 2. Call deactivate() on the old plugin instance if it exists
+  // 1. Call deactivate() on the old plugin instance if it exists
   const oldPlugin = activePlugins.get(pluginId);
   if (oldPlugin?.deactivate) {
     try {
@@ -95,8 +89,9 @@ async function reloadPlugin(pluginId: string): Promise<void> {
     }
   }
 
-  // 3. Unregister everything the plugin has registered
-  registry.unregisterPlugin(pluginId);
+  // 2. Unregister everything except tabs — keeps the tab bar stable during reload.
+  //    The tabs reference viewIds that will be re-registered momentarily.
+  registry.unregisterPlugin(pluginId, { keepTabs: true });
   activePlugins.delete(pluginId);
 
   // 4. Re-discover plugins to get fresh manifest from disk
@@ -104,7 +99,11 @@ async function reloadPlugin(pluginId: string): Promise<void> {
   const pluginInfo = discovered.find((p) => p.manifest.id === pluginId);
 
   if (!pluginInfo) {
-    // Plugin was deleted - it's already unregistered, nothing more to do
+    // Plugin was deleted — close the orphaned tabs we kept open
+    const orphanTabs = registry.tabs.filter((t) => !registry.hasView(t.viewId));
+    for (const tab of orphanTabs) {
+      registry.closeTab(tab.id);
+    }
     console.log(`[hot-reload] Plugin ${pluginId} removed (no longer on disk)`);
     return;
   }
@@ -162,24 +161,8 @@ async function reloadPlugin(pluginId: string): Promise<void> {
   await plugin.activate(context);
   activePlugins.set(pluginId, plugin);
 
-  // 8. Restore tabs that were open before the reload (if the view IDs still exist)
-  let restoredActive = false;
-  for (const { viewId, wasActive } of openTabViewIds) {
-    if (registry.hasView(viewId)) {
-      registry.openView(viewId);
-      if (wasActive) restoredActive = true;
-    }
-  }
-  // If the previously active tab was restored, make sure it's still active
-  // (openView already sets it as active, so this handles the common case)
-  if (restoredActive) {
-    const restoredTab = registry.tabs.find((t) =>
-      openTabViewIds.some((o) => o.wasActive && o.viewId === t.viewId)
-    );
-    if (restoredTab) {
-      registry.setActiveTab(restoredTab.id);
-    }
-  }
-
+  // 8. Notify so ContentArea remounts the plugin's existing tabs with the fresh view
+  //    Tabs were kept open — they already reference the correct viewId, which now
+  //    points to the freshly registered mount function.
   console.log(`[hot-reload] Reloaded plugin: ${plugin.manifest.name} (${pluginId})`);
 }

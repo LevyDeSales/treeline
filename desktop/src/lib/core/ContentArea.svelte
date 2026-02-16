@@ -41,13 +41,25 @@
     return registry.getView(tab.viewId) ?? null;
   }
 
+  // Track which mount function each tab was mounted with (for hot-reload detection)
+  let mountedWith: Record<string, Function | null> = {};
+
   // Handle mounting external plugins when their container becomes available
   function handleMountContainer(tab: Tab, container: HTMLDivElement | null) {
     const view = getView(tab);
     if (!view?.mount || !container) return;
 
-    // Already mounted
-    if (cleanupFunctions[tab.id]) return;
+    // Already mounted with the same mount function — skip
+    if (cleanupFunctions[tab.id] && mountedWith[tab.id] === view.mount) return;
+
+    // Store the container ref so the hot-reload effect can find it
+    mountContainers[tab.id] = container;
+
+    // Hot-reload: clean up old mount before remounting with new function
+    if (cleanupFunctions[tab.id]) {
+      cleanupFunctions[tab.id]!();
+      container.innerHTML = "";
+    }
 
     // Get plugin ID and permissions for this view
     const pluginId = registry.getPluginIdForView(tab.viewId);
@@ -63,7 +75,21 @@
     };
 
     cleanupFunctions[tab.id] = view.mount(container, props);
+    mountedWith[tab.id] = view.mount;
   }
+
+  // Re-mount plugin tabs when their view definition changes (hot-reload)
+  $effect(() => {
+    // Read `views` to subscribe to view changes
+    const _views = views;
+    for (const tab of tabs) {
+      const view = getView(tab);
+      const container = mountContainers[tab.id];
+      if (view?.mount && container && mountedWith[tab.id] && mountedWith[tab.id] !== view.mount) {
+        handleMountContainer(tab, container);
+      }
+    }
+  });
 
   // Clean up closed tabs
   $effect(() => {
@@ -75,6 +101,7 @@
         cleanupFunctions[tabId]!();
         delete cleanupFunctions[tabId];
         delete mountContainers[tabId];
+        delete mountedWith[tabId];
       }
     }
   });

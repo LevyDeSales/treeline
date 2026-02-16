@@ -199,8 +199,13 @@ class PluginRegistry {
   /**
    * Unregister everything a plugin has registered.
    * Removes sidebar items, views, commands, status bar items, and closes open tabs.
+   * When keepTabs is true (used during hot-reload), tabs are preserved so the UI
+   * doesn't flash — views get re-registered with fresh mount functions and the
+   * ContentArea remounts in-place.
    */
-  unregisterPlugin(pluginId: string) {
+  unregisterPlugin(pluginId: string, options?: { keepTabs?: boolean }) {
+    const keepTabs = options?.keepTabs ?? false;
+
     // Find all views owned by this plugin
     const pluginViewIds = new Set<string>();
     for (const [viewId, ownerPluginId] of this._viewToPlugin.entries()) {
@@ -209,10 +214,12 @@ class PluginRegistry {
       }
     }
 
-    // Close tabs for plugin views
-    const tabsToClose = this._tabs.filter((t) => pluginViewIds.has(t.viewId));
-    for (const tab of tabsToClose) {
-      this.closeTab(tab.id);
+    if (!keepTabs) {
+      // Close tabs for plugin views
+      const tabsToClose = this._tabs.filter((t) => pluginViewIds.has(t.viewId));
+      for (const tab of tabsToClose) {
+        this.closeTab(tab.id);
+      }
     }
 
     // Remove views
