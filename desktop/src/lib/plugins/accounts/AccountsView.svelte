@@ -252,10 +252,13 @@
       const accountId = crypto.randomUUID();
       const now = new Date().toISOString();
 
+      const nicknameValue = data.nickname.trim() ? `'${data.nickname.trim().replace(/'/g, "''")}'` : 'NULL';
+      const institutionValue = data.institution_name.trim() ? `'${data.institution_name.trim().replace(/'/g, "''")}'` : 'NULL';
+
       await executeQuery(
         `INSERT INTO sys_accounts (account_id, name, nickname, institution_name, account_type, classification, currency, created_at, updated_at)
-         VALUES ('${accountId}', '${data.name.replace(/'/g, "''")}', '${data.nickname.replace(/'/g, "''")}',
-                 '${data.institution_name.replace(/'/g, "''")}', '${data.account_type}', '${data.classification}', 'USD', '${now}', '${now}')`,
+         VALUES ('${accountId}', '${data.name.replace(/'/g, "''")}', ${nicknameValue},
+                 ${institutionValue}, '${data.account_type}', '${data.classification}', 'USD', '${now}', '${now}')`,
         { readonly: false }
       );
 
@@ -303,11 +306,14 @@
     try {
       const now = new Date().toISOString();
 
+      const nicknameValue = data.nickname.trim() ? `'${data.nickname.trim().replace(/'/g, "''")}'` : 'NULL';
+      const institutionValue = data.institution_name.trim() ? `'${data.institution_name.trim().replace(/'/g, "''")}'` : 'NULL';
+
       await executeQuery(
         `UPDATE sys_accounts SET
           name = '${data.name.replace(/'/g, "''")}',
-          nickname = '${data.nickname.replace(/'/g, "''")}',
-          institution_name = '${data.institution_name.replace(/'/g, "''")}',
+          nickname = ${nicknameValue},
+          institution_name = ${institutionValue},
           account_type = '${data.account_type}',
           classification = '${data.classification}',
           updated_at = '${now}'
