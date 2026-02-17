@@ -99,8 +99,8 @@ export type QueryParam = string | number | boolean | null | string[] | number[];
  *   }
  *   const { sdk }: Props = $props();
  *
- *   // Query with parameterized values (SAFE - recommended)
- *   const transactions = await sdk.query(
+ *   // Query with parameterized values (returns objects keyed by column name)
+ *   const transactions = await sdk.sql(
  *     'SELECT * FROM transactions WHERE amount > ? AND description LIKE ?',
  *     [100, '%coffee%']
  *   );

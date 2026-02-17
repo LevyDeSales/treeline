@@ -623,16 +623,11 @@ Here's a complete example using multiple SDK features:
 
   let items = $state<Item[]>([]);
   let isLoading = $state(true);
-  let theme = $state<"light" | "dark">("light");
   let unsubscribe: (() => void) | null = null;
 
   const schema = sdk.getSchemaName();
 
   onMount(async () => {
-    // Get theme
-    theme = sdk.theme.current();
-    sdk.theme.subscribe((t) => (theme = t as "light" | "dark"));
-
     // Subscribe to data refresh
     unsubscribe = sdk.onDataRefresh(() => loadData());
 
@@ -686,26 +681,48 @@ Here's a complete example using multiple SDK features:
   }
 </script>
 
-<div class="container" class:dark={theme === "dark"}>
-  <h1>My Items</h1>
-
-  <button onclick={addItem}>Add Item</button>
-
-  {#if isLoading}
-    <p>Loading...</p>
-  {:else if items.length === 0}
-    <p>No items yet</p>
-  {:else}
-    <ul>
-      {#each items as item}
-        <li>
-          {item.name}: {sdk.currency.format(item.amount)}
-          <button onclick={() => deleteItem(item.id)}>Delete</button>
-        </li>
-      {/each}
-    </ul>
-  {/if}
-
-  <p class="hint">Press {sdk.formatShortcut("mod+n")} to add</p>
+<div class="tl-view">
+  <div class="tl-header">
+    <div class="tl-header-left">
+      <h1 class="tl-title">My Items</h1>
+      <p class="tl-subtitle">Press {sdk.formatShortcut("mod+n")} to add</p>
+    </div>
+    <div class="tl-header-right">
+      <button class="tl-btn tl-btn-primary" onclick={addItem}>Add Item</button>
+    </div>
+  </div>
+  <div class="tl-content">
+    {#if isLoading}
+      <div class="tl-loading"><div class="tl-spinner"></div></div>
+    {:else if items.length === 0}
+      <div class="tl-empty">
+        <p class="tl-empty-title">No items yet</p>
+        <p class="tl-empty-message">Click "Add Item" to get started</p>
+      </div>
+    {:else}
+      <div class="tl-table-container">
+        <table class="tl-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th style:text-align="right">Amount</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each items as item}
+              <tr>
+                <td>{item.name}</td>
+                <td class="tl-cell-number">{sdk.currency.format(item.amount)}</td>
+                <td class="tl-cell-actions">
+                  <button class="tl-btn tl-btn-danger" onclick={() => deleteItem(item.id)}>Delete</button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
+  </div>
 </div>
 ```
