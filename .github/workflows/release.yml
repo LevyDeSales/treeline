@@ -166,6 +166,10 @@ jobs:
             cp artifacts/cli-macos-arm64/tl tl-macos-arm64
             gh release upload "$VERSION" tl-macos-arm64 --clobber || true
           fi
+          if [ -f "artifacts/cli-macos-x64/tl" ]; then
+            cp artifacts/cli-macos-x64/tl tl-macos-x64
+            gh release upload "$VERSION" tl-macos-x64 --clobber || true
+          fi
           if [ -f "artifacts/cli-windows-x64/tl.exe" ]; then
             cp artifacts/cli-windows-x64/tl.exe tl-windows-x64.exe
             gh release upload "$VERSION" tl-windows-x64.exe --clobber || true
