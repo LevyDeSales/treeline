@@ -147,6 +147,9 @@ export { isMac, modKey, formatShortcut } from "./platform";
 // Logging (for troubleshooting)
 export { logger, logPage, logAction, logError, getLogsPath } from "./logging";
 
+// Sanitization (for security)
+export { sanitizeHtml } from "./sanitization";
+
 // Currency utilities
 export {
   SUPPORTED_CURRENCIES,

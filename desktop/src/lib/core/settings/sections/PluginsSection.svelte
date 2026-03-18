@@ -11,6 +11,7 @@
     registry,
     toast,
     themeManager,
+    sanitizeHtml,
   } from "../../../sdk";
   import "../settings-shared.css";
 
@@ -569,7 +570,7 @@
           </div>
         {:else if pluginReadme}
           <div class="plugin-readme">
-            <div class="readme-content" data-theme={currentTheme}>{@html marked(pluginReadme)}</div>
+            <div class="readme-content" data-theme={currentTheme}>{@html sanitizeHtml(marked(pluginReadme))}</div>
           </div>
         {/if}
       </div>

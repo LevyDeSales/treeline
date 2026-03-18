@@ -4,6 +4,7 @@
   import { openUrl } from "@tauri-apps/plugin-opener";
   import { Modal } from "../shared";
   import { getAppSetting, setAppSetting } from "../sdk/settings";
+  import { sanitizeHtml } from "../sdk";
 
   interface Props {
     onclose: () => void;
@@ -121,7 +122,7 @@
         {/if}
       </div>
       <div class="release-notes">
-        {@html renderNotes(releaseNotes)}
+        {@html sanitizeHtml(renderNotes(releaseNotes))}
       </div>
     {/if}
   </div>
